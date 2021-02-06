@@ -7,23 +7,24 @@ import "./ERC20Interface.sol";
  */
 contract WFlowRegistry  {
  
-    using Counters for Counters.Counter;
-    using SafeMath for uint;
+ 
+
 
     address public owner;
     ERC20Interface public stablecoin;
     uint public fee;
     mapping (bytes32 => TopicRoute) public topicRoutes;
     mapping (bytes32 => MutationRoute) public mutationRoutes;
+    event Withdrawn(address indexed payee, uint256 weiAmount);
 
 
     struct TopicRoute {
-        bytes32 topic;
+        bytes4 topic;
         address topicAddress;
     }
 
     struct MutationRoute {
-        bytes32 mutation;
+        bytes4 mutation;
         address mutationAddress;
     }
 
@@ -45,10 +46,10 @@ contract WFlowRegistry  {
         uint tokenId;
     }
 
-    event BurnSwap(
-        address minter,
+    event WorkflowEntryAdded(
         address from,
-        uint id
+        address topicAddress,
+        bytes32 id
     );
 
     /**
@@ -73,7 +74,7 @@ contract WFlowRegistry  {
     function withdraw(address payable payee) public {
         require(msg.sender == owner, "INVALID_USER");
         uint256 b = address(this).balance;
-        payee.sendValue(address(this).balance);
+        payee.transfer(address(this).balance);
 
         emit Withdrawn(payee, b);
     }
@@ -81,7 +82,7 @@ contract WFlowRegistry  {
     function withdrawToken(address payable payee, address token) public {
         require(msg.sender == owner, "INVALID_USER");
         uint256 b = ERC20Interface(token).balanceOf(address(this));
-        payee.sendValue(b);
+        payee.transfer(b);
 
         emit Withdrawn(payee, b);
     }
@@ -91,11 +92,11 @@ contract WFlowRegistry  {
     // 0xA1...
 
     function registerWorkflowEntry(
-        bytes32 topic,
+        bytes4 topicSelector,
         address topicAddress,
-        bytes32 mutation,
+        bytes4 mutationSelector,
         address mutationAddress,
-        WorkflowPayload payload
+        WorkflowPayload memory payload
     )
         public
         payable
@@ -119,33 +120,33 @@ contract WFlowRegistry  {
         */
         bytes32 topicUid = keccak256(
             abi.encodePacked(
-                topic,
+                topicSelector,
                 topicAddress
                 )
             );
         bytes32 mutationUid = keccak256(
             abi.encodePacked(
-                mutation,
+                mutationSelector,
                 mutationAddress
                 )
             );
 
-        require(topicRoutes[topicUid].topicAddress != address(0),
+        require(topicRoutes[topicSelector].topicAddress != address(0),
         "Topic and address already exists");
 
         // register topic and mutation
-        topicRoutes[topicUid] = TopicRoute({
-            topic: topic,
+        topicRoutes[topicSelector] = TopicRoute({
+            topic: topicSelector,
             topicAddress: topicAddress
         });
 
 
-        require(mutationRoutes[topicUid].mutationAddress != address(0),
+        require(mutationRoutes[topicSelector].mutationAddress != address(0),
         "Mutation and address already exists");
 
         // register topic and mutation
-        mutationRoutes[topicUid] = MutationRoute({
-            mutation: mutation,
+        mutationRoutes[topicSelector] = MutationRoute({
+            mutation: mutationSelector,
             mutationAddress: mutationAddress
         });
 
@@ -162,9 +163,9 @@ contract WFlowRegistry  {
         ));
 
         emit WorkflowEntryAdded(
-            address(this),
             msg.sender,
-            tokenId
+            topicAddress,
+            topicUid
         );
 
         return true;
