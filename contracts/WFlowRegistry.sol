@@ -1,34 +1,10 @@
 pragma solidity ^0.7.0;
+pragma experimental ABIEncoderV2;
+
 import "./ERC20Interface.sol";
 
-
-/**
- * Maintains workflow state machine flow
- */
-contract WFlowRegistry  {
- 
- 
-
-
-    address public owner;
-    ERC20Interface public stablecoin;
-    uint public fee;
-    mapping (bytes32 => TopicRoute) public topicRoutes;
-    mapping (bytes32 => MutationRoute) public mutationRoutes;
-    event Withdrawn(address indexed payee, uint256 weiAmount);
-
-
-    struct TopicRoute {
-        bytes4 topic;
-        address topicAddress;
-    }
-
-    struct MutationRoute {
-        bytes4 mutation;
-        address mutationAddress;
-    }
-
-    // A Workflow payload can either be content addressable document or NFT address with supplied token id
+contract WMessages {
+// A Workflow payload can either be content addressable document or NFT address with supplied token id
     struct WorkflowPayload  {
         // IPLD has containing document
         string documentURI;
@@ -45,12 +21,47 @@ contract WFlowRegistry  {
         // NFT TokenID
         uint tokenId;
     }
+}
+/**
+ * Maintains workflow state machine flow
+ */
+contract WFlowRegistry  is WMessages {
+    address public owner;
+    ERC20Interface public stablecoin;
+    uint public fee;
+    mapping (bytes4 => ActionRoute) public actions;
+    mapping (bytes4 => NextRoute) public nextActions;
+    event Withdrawn(address indexed payee, uint256 weiAmount);
 
+
+    struct ActionRoute {
+        bytes4 topic;
+        address actionAddress;
+    }
+
+    struct NextRoute {
+        bytes4 mutation;
+        address nextAddress;
+    }
+
+    
     event WorkflowEntryAdded(
         address from,
-        address topicAddress,
+        address actionAddress,
         bytes32 id
     );
+
+    function getAction(
+        bytes4 selector
+    ) public view returns(ActionRoute memory) {
+        return actions[selector];
+    }
+
+    function getNext(
+        bytes4 selector
+    ) public view returns(NextRoute memory) {
+        return nextActions[selector];
+    }    
 
     /**
     * XDV Data Token
@@ -92,10 +103,10 @@ contract WFlowRegistry  {
     // 0xA1...
 
     function registerWorkflowEntry(
-        bytes4 topicSelector,
-        address topicAddress,
-        bytes4 mutationSelector,
-        address mutationAddress,
+        bytes4 actionSelector,
+        address actionAddress,
+        bytes4 nextSelector,
+        address nextAddress,
         WorkflowPayload memory payload
     )
         public
@@ -118,36 +129,24 @@ contract WFlowRegistry  {
             stablecoin.balanceOf(msg.sender) == (mintingServiceFee.sum(protocolServiceFee)), 
             "MUST SEND FEE BEFORE USE");
         */
-        bytes32 topicUid = keccak256(
-            abi.encodePacked(
-                topicSelector,
-                topicAddress
-                )
-            );
-        bytes32 mutationUid = keccak256(
-            abi.encodePacked(
-                mutationSelector,
-                mutationAddress
-                )
-            );
 
-        require(topicRoutes[topicSelector].topicAddress != address(0),
+        require(actions[actionSelector].actionAddress != address(0),
         "Topic and address already exists");
 
         // register topic and mutation
-        topicRoutes[topicSelector] = TopicRoute({
-            topic: topicSelector,
-            topicAddress: topicAddress
+        actions[actionSelector] = ActionRoute({
+            topic: actionSelector,
+            actionAddress: actionAddress
         });
 
 
-        require(mutationRoutes[topicSelector].mutationAddress != address(0),
+        require(nextActions[actionSelector].nextAddress != address(0),
         "Mutation and address already exists");
 
         // register topic and mutation
-        mutationRoutes[topicSelector] = MutationRoute({
-            mutation: mutationSelector,
-            mutationAddress: mutationAddress
+        nextActions[actionSelector] = NextRoute({
+            mutation: nextSelector,
+            nextAddress: nextAddress
         });
 
         // TODO: Update accounting
@@ -158,14 +157,14 @@ contract WFlowRegistry  {
             stablecoin.transferFrom(
                 msg.sender,
                 address(this), 
-                fee,
+                fee),
             "Transfer failed for fee"
-        ));
+        );
 
         emit WorkflowEntryAdded(
             msg.sender,
-            topicAddress,
-            topicUid
+            actionAddress,
+            actionSelector
         );
 
         return true;
