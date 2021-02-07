@@ -30,22 +30,18 @@ contract WFlowRegistry  is WMessages {
     ERC20Interface public stablecoin;
     uint public fee;
     mapping (bytes4 => ActionRoute) public actions;
-    mapping (bytes4 => NextRoute) public nextActions;
     event Withdrawn(address indexed payee, uint256 weiAmount);
 
 
     struct ActionRoute {
-        bytes4 topic;
-        address actionAddress;
+        bytes4 selector;
+        address controller;
+        bytes4 nextSelector;
+        bytes4[] conditions;
+        bool[] conditionStatus;
     }
-
-    struct NextRoute {
-        bytes4 mutation;
-        address nextAddress;
-    }
-
     
-    event WorkflowEntryAdded(
+    event MessageEntryAdded(
         address from,
         address actionAddress,
         bytes32 id
@@ -57,11 +53,6 @@ contract WFlowRegistry  is WMessages {
         return actions[selector];
     }
 
-    function getNext(
-        bytes4 selector
-    ) public view returns(NextRoute memory) {
-        return nextActions[selector];
-    }    
 
     /**
     * XDV Data Token
@@ -102,14 +93,13 @@ contract WFlowRegistry  is WMessages {
     // ExecutePrescription(uint, uint, string) === bytes32
     // 0xA1...
 
-    function registerWorkflowEntry(
-        bytes4 actionSelector,
-        address actionAddress,
-        bytes4 nextSelector,
-        address nextAddress,
-        WorkflowPayload memory payload
+    function mapMessageToController(
+        address controller,
+        bytes4 messageRequest,
+        bytes4[] memory conditions,
+        bytes4 nextMessage
     )
-        public
+        external
         payable
         returns (bool)
     {
@@ -130,23 +120,16 @@ contract WFlowRegistry  is WMessages {
             "MUST SEND FEE BEFORE USE");
         */
 
-        require(actions[actionSelector].actionAddress != address(0),
-        "Topic and address already exists");
+        require(actions[messageRequest].selector != address(0),
+        "Address already exists");
 
         // register topic and mutation
-        actions[actionSelector] = ActionRoute({
-            topic: actionSelector,
-            actionAddress: actionAddress
-        });
-
-
-        require(nextActions[actionSelector].nextAddress != address(0),
-        "Mutation and address already exists");
-
-        // register topic and mutation
-        nextActions[actionSelector] = NextRoute({
-            mutation: nextSelector,
-            nextAddress: nextAddress
+        actions[messageRequest] = ActionRoute({
+            selector: messageRequest,
+            nextSelector: nextMessage,
+            controller: controller,
+            conditions: conditions,
+            conditionStatus: [] 
         });
 
         // TODO: Update accounting
@@ -161,10 +144,10 @@ contract WFlowRegistry  is WMessages {
             "Transfer failed for fee"
         );
 
-        emit WorkflowEntryAdded(
+        emit MessageEntryAdded(
             msg.sender,
-            actionAddress,
-            actionSelector
+            controller,
+            messageRequest
         );
 
         return true;

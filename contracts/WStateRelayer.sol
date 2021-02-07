@@ -13,53 +13,115 @@ contract WStateRelayer  is WMessages {
         registry = WFlowRegistry(wfRegistry);
     }
 
+    uint public jobCounter;
+    mapping (uint => MessageRequest) public jobs;
 
-    event MessagRelayed(
-        bytes4 mutation,
-        address mutationAddress,
-        WorkflowPayload payload
+    struct MessageRequest {
+        uint status;
+        uint id;
+        bytes request;
+        bytes response;
+        bytes4 selector;
+        bytes4 next;
+    }
+
+    event MessageRelayed(
+        bytes request,
+        bytes response,
+        uint id
     );
 
+
+    event MessageRequestCompleted(
+        address controller,
+        bytes4 selector,
+        bytes4 next,
+        uint id
+    );
     /** NatDoc
      * @dev Send payload message to be process by a WAction smart contract
      * minter
      * selfMint
      * tokenURI
      */
-    function executeMessage(
+    function executeRequestResponse(
         bytes4 selector,
-        WorkflowPayload memory payload
+        bytes memory params
+    ) public returns (uint) {
+
+        // check if it has been whitelisted and purchased
+        require(registry.getAction(selector).controller != address(0), "Missing topic key");
+        
+        (bool success, bytes memory ret) =  registry
+        .getAction(selector).controller
+        .call(
+            abi.encodeWithSelector(
+                registry.getAction(selector).selector,
+                msg.sender,
+                params
+                )
+        );
+
+        jobCounter++;
+        jobs[jobCounter] = MessageRequest({
+            status: 0,
+            id: jobCounter,
+            request: params,
+            response: ret,
+            selector: selector,
+            next: registry.getAction(selector).nextSelector
+        });
+        
+        emit MessageRelayed(
+            params, 
+            ret,
+            jobCounter
+        );
+
+        return jobCounter;
+    }
+
+    // Solo puede ser getter
+    // El switch de MessageConditionFound, llama al siguiente paso
+    function executeJobCondition(
+        bytes4 selector,
+        uint jobId
     ) public returns (bool) {
 
         // check if it has been whitelisted and purchased
-        require(registry.getAction(selector).actionAddress != address(0), "Missing topic key");
-        address target = registry.getAction(selector).actionAddress;
-        (bool success, bytes memory ret) =  target.call(
-            abi.encodeWithSelector(
-                registry.getAction(selector).topic,
-                payload.didAgent,
-                payload.didPayloadOwner,
-                payload.documentURI,
-                payload.nftAddress,
-                payload.tokenId,
-                payload.payloadOwner,
-                msg.sender)
+        require(registry.getAction(selector).conditions.length > 0, "Missing topic key");
+        require(
+            jobs[jobId].status  == 0, "Job already completed"
         );
-           
-        if ( success && (registry.getNext(selector).nextAddress != address(0))) {
-            address next = registry.getNext(selector).nextAddress;
-            (bool ok, bytes memory res) =  target.call(
+        bool conditionsCompleted = false;
+        for (uint i = 0;i<registry.getAction(selector).conditions.length;i++) {
+            (bool ok, bytes memory res) =  registry
+            .getAction(selector)
+            .controller
+            .call(
             abi.encodeWithSelector(
-                registry.getNext(selector).mutation,
-                ret,
-                msg.sender)
+                registry.getAction(selector).conditions[i],
+                msg.sender,
+                jobs[jobId].response
+            )
             );
 
-            emit MessagRelayed(
-                registry.getNext(selector).mutation, 
-                registry.getNext(selector).nextAddress,
-                payload);
+            (bool conditionResult) = abi.decode(res, (bool));
+            registry.getAction(selector).conditionStatus[i] = conditionResult ? 1 : 0;
+
+            conditionsCompleted = conditionsCompleted && conditionResult;
         }
+
+        if (conditionsCompleted) {
+            jobs[jobId].status = 1;
+            emit MessageRequestCompleted(
+                registry.getAction(selector).controller,
+                registry.getAction(selector).selector,
+                registry.getAction(selector).nextSelector,
+                jobId
+            );
+        }
+
         return true;
     }
 }
