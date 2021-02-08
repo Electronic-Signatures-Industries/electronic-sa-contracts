@@ -44,9 +44,7 @@ contract TestActionSAContract is WMessages {
     function createSA(
         address caller,
         bytes memory params
-    ) public view returns(
-        string memory, string memory, string memory,
-        bytes32) {
+    ) public returns(uint) {
         (string memory name,
          string memory companyAddress, 
          string memory industry) =
@@ -76,7 +74,7 @@ contract TestActionSAContract is WMessages {
         bytes memory params
     ) 
     public view returns(bool) {
-        uint id = abi.decode(params, uint);
+        uint id = abi.decode(params, (uint));
         return companies[id].verifiedName;
     }
 
@@ -85,7 +83,7 @@ contract TestActionSAContract is WMessages {
         uint id,
         bool ok
     ) 
-    public view returns(bool) {
+    public returns(bool) {
         companies[id].verifiedName = ok;
         return true;
     }

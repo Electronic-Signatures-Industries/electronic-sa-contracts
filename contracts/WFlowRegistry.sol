@@ -97,6 +97,7 @@ contract WFlowRegistry  is WMessages {
         address controller,
         bytes4 messageRequest,
         bytes4[] memory conditions,
+        bool[] memory conditionStatus,
         bytes4 nextMessage
     )
         external
@@ -120,7 +121,7 @@ contract WFlowRegistry  is WMessages {
             "MUST SEND FEE BEFORE USE");
         */
 
-        require(actions[messageRequest].selector != address(0),
+        require(actions[messageRequest].controller != address(0),
         "Address already exists");
 
         // register topic and mutation
@@ -129,7 +130,7 @@ contract WFlowRegistry  is WMessages {
             nextSelector: nextMessage,
             controller: controller,
             conditions: conditions,
-            conditionStatus: [] 
+            conditionStatus: conditionStatus
         });
 
         // TODO: Update accounting

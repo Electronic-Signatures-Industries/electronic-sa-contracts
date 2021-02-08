@@ -107,7 +107,7 @@ contract WStateRelayer  is WMessages {
             );
 
             (bool conditionResult) = abi.decode(res, (bool));
-            registry.getAction(selector).conditionStatus[i] = conditionResult ? 1 : 0;
+            registry.getAction(selector).conditionStatus[i] = conditionResult;
 
             conditionsCompleted = conditionsCompleted && conditionResult;
         }
