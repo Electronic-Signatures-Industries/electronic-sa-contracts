@@ -2,26 +2,8 @@ pragma solidity ^0.7.0;
 pragma experimental ABIEncoderV2;
 
 import "./ERC20Interface.sol";
+import "./WMessages.sol";
 
-contract WMessages {
-// A Workflow payload can either be content addressable document or NFT address with supplied token id
-    struct WorkflowPayload  {
-        // IPLD has containing document
-        string documentURI;
-        // Agent DID
-        string didAgent;
-        // Owner address
-        address payloadOwner;
-        // Owner DID
-        string didPayloadOwner;
-        // timeout message if router can't find addresss
-        uint timeoutAfterRetries;
-        // NFT Address if ERC721
-        address nftAddress;
-        // NFT TokenID
-        uint tokenId;
-    }
-}
 /**
  * Maintains workflow state machine flow
  */
@@ -30,6 +12,8 @@ contract WFlowRegistry  is WMessages {
     ERC20Interface public stablecoin;
     uint public fee;
     mapping (bytes4 => ActionRoute) public actions;
+    mapping (address => uint) public accounting;
+
     event Withdrawn(address indexed payee, uint256 weiAmount);
 
 
@@ -121,8 +105,7 @@ contract WFlowRegistry  is WMessages {
             "MUST SEND FEE BEFORE USE");
         */
 
-        require(actions[messageRequest].controller != address(0),
-        "Address already exists");
+        require(actions[messageRequest].controller == address(0), "Address already exists");
 
         // register topic and mutation
         actions[messageRequest] = ActionRoute({
@@ -144,7 +127,8 @@ contract WFlowRegistry  is WMessages {
                 fee),
             "Transfer failed for fee"
         );
-
+        accounting[msg.sender] = accounting[msg.sender] + fee;
+        accounting[address(this)] = accounting[address(this)] + fee;
         emit MessageEntryAdded(
             msg.sender,
             controller,

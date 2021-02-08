@@ -6,6 +6,13 @@ module.exports = {
       version: "^0.7.0"
     }
   },
+  mocha: {
+    reporter: 'eth-gas-reporter',
+    reporterOptions: {
+      excludeContracts: [''],
+      currency: 'USD'
+    }
+  },
   plugins: ["truffle-contract-size"],
   networks: {
     bsctestnet: {
@@ -23,14 +30,14 @@ module.exports = {
       skipDryRun: true
     },
     localhost: {
-      from: '0xA83B070a68336811e9265fbEc6d49B98538F61EA',
+      from: '0x95BBef5019Ecf57c2e6FE0609165cc34d961aF10',
       host: 'localhost',
       port: 8545,
       network_id: '10' // Match any network id
     },
     development: {
-      from: '0xA83B070a68336811e9265fbEc6d49B98538F61EA',
-      host: 'localhost' ,
+      from: '0x95BBef5019Ecf57c2e6FE0609165cc34d961aF10',
+      host: 'localhost',
       port: 8545,
       network_id: '*' // Match any network id
     },
@@ -41,7 +48,7 @@ module.exports = {
       gas: 7000000,
       gasPrice: 30000000000
     },
-    
+
     kovan: {
       provider: () =>
         new HDWalletProvider(process.env.MNEMONIC, process.env.URL),
@@ -55,8 +62,8 @@ module.exports = {
         new HDWalletProvider(process.env.MNEMONIC, process.env.URL),
       network_id: 3,
       gas: 5000000,
-     // timeoutBlocks: 3,
-      gasPrice:  65000000000
+      // timeoutBlocks: 3,
+      gasPrice: 65000000000
     }
   }
 };

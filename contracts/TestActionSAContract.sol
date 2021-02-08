@@ -3,16 +3,18 @@ pragma experimental ABIEncoderV2;
 
 import "./WFlowRegistry.sol";
 import "./MinLibBytes.sol";
+import "./WMessages.sol";
 
 contract TestActionSAContract is WMessages {
 
 
     struct SociedadAnonima {
         string name;
+        bool verifiedName;        
         string companyAddress;
         string industry;
-        bool verifiedName;
         string ruc;
+        bool verifiedRuc;
     }
 
     event CompanyAdded(
@@ -41,7 +43,7 @@ contract TestActionSAContract is WMessages {
 
 
     // Create SA
-    function createSA(
+    function propose(
         address caller,
         bytes memory params
     ) public returns(uint) {
@@ -61,10 +63,18 @@ contract TestActionSAContract is WMessages {
             companyAddress: companyAddress,
             industry: industry,
             ruc: "",
-            verifiedName: false
+            verifiedName: false,
+            verifiedRuc: false
         });
 
-        emit CompanyAdded(name, counter);
+        emit ActionChanged(
+            "propose(address, bytes)", 
+            params
+        );
+        emit CompanyAdded(
+            name,
+            counter
+        );
 
         return counter;
     }
@@ -85,11 +95,37 @@ contract TestActionSAContract is WMessages {
     ) 
     public returns(bool) {
         companies[id].verifiedName = ok;
+        bytes memory params = abi.encodePacked(ok);
+        emit PropertyChanged('verifiedName', params);
+        return true;
+    }
+
+
+    function hasRUC(
+        address caller,
+        bytes memory params
+    ) 
+    public view returns(bool) {
+        uint id = abi.decode(params, (uint));
+        return companies[id].verifiedRuc;
+    }
+
+
+    function setRUC(
+        uint id,
+        string memory ruc
+    ) 
+    public returns(bool) {
+        require(companies[id].verifiedRuc == false, "RUC already verified");
+        companies[id].ruc = ruc;
+        companies[id].verifiedRuc = true;
+        bytes memory params = abi.encodePacked(ruc);
+        emit PropertyChanged('ruc', params);
         return true;
     }
 
     // Register SA
-    function registerSA(
+    function register(
         address caller,
         bytes memory params
     ) public returns(bool) {
@@ -100,8 +136,11 @@ contract TestActionSAContract is WMessages {
             (uint, string) 
         );
 
-        companies[id].ruc = ruc;
-
+        // companies[id].ruc = ruc;
+        emit ActionChanged(
+            "register(address, bytes)", 
+            params
+        );
         emit CompanyRegistered(companies[id].name, ruc, id);
 
         return true;

@@ -5,43 +5,68 @@ const BigNumber = require('bignumber.js');
 const { ethers } = require('ethers');
 const { assert } = require('chai');
 
-contract('NFTFactory', accounts => {
+contract('Async Request Response Message Gateway', accounts => {
   let dai;
   let owner;
-  let nftFactory;
-  let documents;
-  let documentMinterAddress;
-  let DocumentAnchoring = artifacts.require('DocumentAnchoring');
+  let registry;
+  let relayer;
+  let testDemoContract;
+  let WFlowRegistry = artifacts.require('WFlowRegistry');
   let TestDAI = artifacts.require('DAI');
-  let DocumentMinter = artifacts.require('NFTDocumentMinter');
-  let NFTFactory = artifacts.require('NFTFactory');
-  contract('#documents', () => {
+  let WStateRelayer = artifacts.require('WStateRelayer');
+  let TestActionSAContract = artifacts.require('TestActionSAContract');
+  contract('#WFlowRegistry', () => {
     before(async () => {
       owner = accounts[0];
       dai = await TestDAI.deployed();
-      nftFactory = await NFTFactory.deployed();
-      documents = await DocumentAnchoring.deployed();
+      registry = await WFlowRegistry.deployed();
+      relayer = await WStateRelayer.deployed();
+      testDemoContract = await TestActionSAContract.deployed();
     });
-    describe('when creating a document issuing provider', () => {
-      it('should create a new NFT', async () => {
-        assert.equal(nftFactory !== null, true);
+    describe('when registering an async req/res', () => {
+      it('should add it to register for a fee', async () => {
+        assert.equal(registry !== null, true);
 
-        const res = await nftFactory.createMinter(
-          "NOTARIO 9VNO - APOSTILLADO",
-          "NOT9APOST",
-          "0x0a2Cd4F28357D59e9ff26B1683715201Ea53Cc3b",
-          false,
-          new BigNumber(20 * 10e18)
+        await dai.mint(
+          accounts[0],
+          new BigNumber(22 * 1e18)
         );
 
-        const nftAddress = res.logs[0].args.minterAddress;
-        const minter = await DocumentMinter.at(nftAddress);
-        assert.equal(await minter.symbol(), "NOT9APOST");
+        // allowance
+        await dai.approve(
+          registry.address
+          ,
+          new BigNumber(22 * 1e18), {
+          from: accounts[0]
+        }
+        );
+
+        const controller = testDemoContract.address;
+        const messageSelector = web3.eth.abi.encodeFunctionSignature(`propose(address,bytes)`);
+        const conditions = [
+          web3.eth.abi.encodeFunctionSignature(`hasRUC(address,bytes)`),
+          web3.eth.abi.encodeFunctionSignature(`hasVerifiedName(address,bytes)`),
+        ];
+        const conditionStatus = [false, false];
+        const nextMessage = web3.eth.abi.encodeFunctionSignature(
+          `register(address,bytes)`);
+        const res = await registry.mapMessageToController(
+          controller,
+          messageSelector,
+          conditions,
+          conditionStatus,
+          nextMessage
+        );
+
+        console.log(res.logs[0]);
+        // const nftAddress = res.logs[0].args.minterAddress;
+        // const minter = await DocumentMinter.at(nftAddress);
+        // assert.equal(await minter.symbol(), "NOT9APOST");
       });
     });
 
 
-    describe('when requesting minting from a document issuing provider', () => {
+    xdescribe('when requesting minting from a document issuing provider', () => {
       it('should anchor document and add it to request list', async () => {
         assert.equal(nftFactory !== null, true);
 
