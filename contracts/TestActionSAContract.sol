@@ -68,7 +68,7 @@ contract TestActionSAContract is WMessages {
         });
 
         emit ActionChanged(
-            "propose(address, bytes)", 
+            getMethodSig(msg.data), 
             params
         );
         emit CompanyAdded(
@@ -96,7 +96,7 @@ contract TestActionSAContract is WMessages {
     public returns(bool) {
         companies[id].verifiedName = ok;
         bytes memory params = abi.encodePacked(ok);
-        emit PropertyChanged('verifiedName', params);
+        emit PropertyChanged("verifiedName", params);
         return true;
     }
 
@@ -120,7 +120,7 @@ contract TestActionSAContract is WMessages {
         companies[id].ruc = ruc;
         companies[id].verifiedRuc = true;
         bytes memory params = abi.encodePacked(ruc);
-        emit PropertyChanged('ruc', params);
+        emit PropertyChanged("ruc", params);
         return true;
     }
 
@@ -138,7 +138,7 @@ contract TestActionSAContract is WMessages {
 
         // companies[id].ruc = ruc;
         emit ActionChanged(
-            "register(address, bytes)", 
+            getMethodSig(msg.data), 
             params
         );
         emit CompanyRegistered(companies[id].name, ruc, id);

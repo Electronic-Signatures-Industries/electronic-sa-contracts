@@ -45,23 +45,28 @@ contract WStateRelayer  is WMessages {
      * tokenURI
      */
     function executeRequestResponse(
+        address controller,
         bytes4 selector,
         bytes memory params
     ) public returns (uint) {
 
         // check if it has been whitelisted and purchased
-        require(registry.getAction(selector).controller != address(0), "Missing topic key");
+        require(registry.getAction(controller, selector).controller != address(0), "Missing topic key");
         
         (bool success, bytes memory ret) =  registry
-        .getAction(selector).controller
+        .getAction(controller, selector).controller
         .call(
             abi.encodeWithSelector(
-                registry.getAction(selector).selector,
+                registry.getAction(controller, selector).selector,
                 msg.sender,
                 params
                 )
         );
-
+        if (!success){
+          //re-throw the revert with the same revert reason.
+          revertWithData(ret);
+          return 0;
+        }
         jobCounter++;
         jobs[jobCounter] = MessageRequest({
             status: 0,
@@ -69,7 +74,7 @@ contract WStateRelayer  is WMessages {
             request: params,
             response: ret,
             selector: selector,
-            next: registry.getAction(selector).nextSelector
+            next: registry.getAction(controller, selector).nextSelector
         });
         
         emit MessageRelayed(
@@ -81,33 +86,40 @@ contract WStateRelayer  is WMessages {
         return jobCounter;
     }
 
+    function revertWithData(bytes memory data) internal pure {
+        assembly {
+            revert(add(data,32), mload(data))
+        }
+    }
+
     // Solo puede ser getter
     // El switch de MessageConditionFound, llama al siguiente paso
     function executeJobCondition(
+        address controller,
         bytes4 selector,
         uint jobId
     ) public returns (bool) {
 
         // check if it has been whitelisted and purchased
-        require(registry.getAction(selector).conditions.length > 0, "Missing topic key");
+        require(registry.getAction(controller, selector).conditions.length > 0, "Missing topic key");
         require(
             jobs[jobId].status  == 0, "Job already completed"
         );
         bool conditionsCompleted = false;
-        for (uint i = 0;i<registry.getAction(selector).conditions.length;i++) {
+        for (uint i = 0;i<registry.getAction(controller, selector).conditions.length;i++) {
             (bool ok, bytes memory res) =  registry
-            .getAction(selector)
+            .getAction(controller, selector)
             .controller
             .call(
             abi.encodeWithSelector(
-                registry.getAction(selector).conditions[i],
+                registry.getAction(controller, selector).conditions[i],
                 msg.sender,
                 jobs[jobId].response
             )
             );
 
             (bool conditionResult) = abi.decode(res, (bool));
-            registry.getAction(selector).conditionStatus[i] = conditionResult;
+            registry.getAction(controller, selector).conditionStatus[i] = conditionResult;
 
             conditionsCompleted = conditionsCompleted && conditionResult;
         }
@@ -115,9 +127,9 @@ contract WStateRelayer  is WMessages {
         if (conditionsCompleted) {
             jobs[jobId].status = 1;
             emit MessageRequestCompleted(
-                registry.getAction(selector).controller,
-                registry.getAction(selector).selector,
-                registry.getAction(selector).nextSelector,
+                registry.getAction(controller, selector).controller,
+                registry.getAction(controller, selector).selector,
+                registry.getAction(controller, selector).nextSelector,
                 jobId
             );
         }

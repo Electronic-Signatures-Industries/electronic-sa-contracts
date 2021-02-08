@@ -3,8 +3,8 @@ pragma experimental ABIEncoderV2;
 
 contract WMessages {
 
-    event PropertyChanged(string name, bytes data);
-    event ActionChanged(string name, bytes request);
+    event PropertyChanged(string propName, bytes data);
+    event ActionChanged(bytes4 methodSig, bytes request);
     
 // A Workflow payload can either be content addressable document or NFT address with supplied token id
     struct WorkflowPayload  {
@@ -22,5 +22,10 @@ contract WMessages {
         address nftAddress;
         // NFT TokenID
         uint tokenId;
+    }
+
+    function getMethodSig(bytes memory data) public pure returns (bytes4) {
+        return (bytes4(data[0]) | bytes4(data[1]) >> 8 |
+            bytes4(data[2]) >> 16 | bytes4(data[3]) >> 24);
     }
 }

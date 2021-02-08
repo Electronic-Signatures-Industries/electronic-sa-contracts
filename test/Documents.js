@@ -63,6 +63,35 @@ contract('Async Request Response Message Gateway', accounts => {
         // const minter = await DocumentMinter.at(nftAddress);
         // assert.equal(await minter.symbol(), "NOT9APOST");
       });
+ 
+    });
+    describe('when executing an async req/res message', () => {
+      it('should send result to next message', async () => {
+        assert.equal(registry !== null, true);
+
+
+        
+        const controller = testDemoContract.address;
+        const messageSelector = web3.eth.abi.encodeFunctionSignature(`propose(address,bytes)`);
+
+        // console.log(res.logs[0]);
+
+        const response = await relayer.executeRequestResponse(
+          controller,
+          messageSelector,
+          ethers.utils.defaultAbiCoder.encode(['string', 'string', 'string'],[
+            "IFESA",
+            "Paseo Real Casa 29",
+            "Informatica/Blockchain"
+          ])
+        );
+
+        console.log(response.logs[0]);
+        // const nftAddress = res.logs[0].args.minterAddress;
+        // const minter = await DocumentMinter.at(nftAddress);
+        // assert.equal(await minter.symbol(), "NOT9APOST");
+      });
+ 
     });
 
 
@@ -161,7 +190,7 @@ contract('Async Request Response Message Gateway', accounts => {
         await minter.burn(
           minted.logs[0].args.tokenId, {
           from: accounts[1],
-          value: new BigNumber(2.4  * 1e18)
+          value: new BigNumber(2.4 * 1e18)
         }
         );
       });

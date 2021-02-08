@@ -11,7 +11,7 @@ contract WFlowRegistry  is WMessages {
     address public owner;
     ERC20Interface public stablecoin;
     uint public fee;
-    mapping (bytes4 => ActionRoute) public actions;
+    mapping (address => mapping( bytes4 => ActionRoute)) public actions;
     mapping (address => uint) public accounting;
 
     event Withdrawn(address indexed payee, uint256 weiAmount);
@@ -32,9 +32,10 @@ contract WFlowRegistry  is WMessages {
     );
 
     function getAction(
+        address controller,
         bytes4 selector
     ) public view returns(ActionRoute memory) {
-        return actions[selector];
+        return actions[controller][selector];
     }
 
 
@@ -105,10 +106,10 @@ contract WFlowRegistry  is WMessages {
             "MUST SEND FEE BEFORE USE");
         */
 
-        require(actions[messageRequest].controller == address(0), "Address already exists");
+        require(actions[controller][messageRequest].controller == address(0), "Address already exists");
 
         // register topic and mutation
-        actions[messageRequest] = ActionRoute({
+        actions[controller][messageRequest] = ActionRoute({
             selector: messageRequest,
             nextSelector: nextMessage,
             controller: controller,
