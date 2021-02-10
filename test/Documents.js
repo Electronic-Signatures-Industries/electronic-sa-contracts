@@ -15,6 +15,7 @@ contract('Async Request Response Message Gateway', accounts => {
   let TestDAI = artifacts.require('DAI');
   let WStateRelayer = artifacts.require('WStateRelayer');
   let TestActionSAContract = artifacts.require('TestActionSAContract');
+  let reqResId;
   contract('#WFlowRegistry', () => {
     before(async () => {
       owner = accounts[0];
@@ -26,7 +27,7 @@ contract('Async Request Response Message Gateway', accounts => {
     describe('when registering an async req/res', () => {
       it('should add it to register for a fee', async () => {
         assert.equal(registry !== null, true);
-
+        // mint 22 DAI
         await dai.mint(
           accounts[0],
           new BigNumber(22 * 1e18)
@@ -45,11 +46,12 @@ contract('Async Request Response Message Gateway', accounts => {
         const messageSelector = web3.eth.abi.encodeFunctionSignature(`propose(address,bytes)`);
         const conditions = [
           web3.eth.abi.encodeFunctionSignature(`hasRUC(address,bytes)`),
-          web3.eth.abi.encodeFunctionSignature(`hasVerifiedName(address,bytes)`),
+          web3.eth.abi.encodeFunctionSignature(`hasValidName(address,bytes)`),
         ];
         const conditionStatus = [false, false];
         const nextMessage = web3.eth.abi.encodeFunctionSignature(
           `register(address,bytes)`);
+        // Create controller mapping for messages
         const res = await registry.mapMessageToController(
           controller,
           messageSelector,
@@ -58,19 +60,14 @@ contract('Async Request Response Message Gateway', accounts => {
           nextMessage
         );
 
-        console.log(res.logs[0]);
-        // const nftAddress = res.logs[0].args.minterAddress;
-        // const minter = await DocumentMinter.at(nftAddress);
-        // assert.equal(await minter.symbol(), "NOT9APOST");
+        assert.equal(res.logs[0].args.actionAddress, controller);
       });
- 
+
     });
     describe('when executing an async req/res message', () => {
       it('should send result to next message', async () => {
         assert.equal(registry !== null, true);
 
-
-        
         const controller = testDemoContract.address;
         const messageSelector = web3.eth.abi.encodeFunctionSignature(`propose(address,bytes)`);
 
@@ -79,123 +76,43 @@ contract('Async Request Response Message Gateway', accounts => {
         const response = await relayer.executeRequestResponse(
           controller,
           messageSelector,
-          ethers.utils.defaultAbiCoder.encode(['string', 'string', 'string'],[
+          ethers.utils.defaultAbiCoder.encode(['string', 'string', 'string'], [
             "IFESA",
             "Paseo Real Casa 29",
             "Informatica/Blockchain"
           ])
         );
 
-        console.log(response.logs[0]);
+        console.log(response.logs[0].args)
+        reqResId = 1; // response.logs[0].args.id;
         // const nftAddress = res.logs[0].args.minterAddress;
         // const minter = await DocumentMinter.at(nftAddress);
         // assert.equal(await minter.symbol(), "NOT9APOST");
       });
- 
     });
+    describe('when querying an async req/res message conditions', () => {
+      it('should update', async () => {
+        assert.equal(registry !== null, true);
 
+        const controller = testDemoContract.address;
+        const messageSelector = web3.eth.abi.encodeFunctionSignature(`propose(address,bytes)`);
 
-    xdescribe('when requesting minting from a document issuing provider', () => {
-      it('should anchor document and add it to request list', async () => {
-        assert.equal(nftFactory !== null, true);
+        // console.log(res.logs[0]);
 
-        const res = await nftFactory.createMinter(
-          "NOTARIO 9VNO - APOSTILLADO",
-          "NOT9APOST",
-          "0x0a2Cd4F28357D59e9ff26B1683715201Ea53Cc3b",
-          false,
-          new BigNumber(20 * 10e18)
+        const response = await relayer.executeJobCondition(
+          controller,
+          messageSelector,
+          new BigNumber(reqResId),
         );
 
-        documentMinterAddress = res.logs[0].args.minterAddress;
-
-        const requestMintResult = await documents.requestMint(
-          documentMinterAddress,
-          `did:ethr:${documentMinterAddress}`,
-          `did:ethr:${accounts[1]}`,
-          false,
-          `https://bobb.did.pa`, {
-          from: accounts[1]
-        }
-        );
-        assert.equal('https://bobb.did.pa', requestMintResult.logs[0].args.tokenURI);
-      });
-
-      it('should mint NFT issued by document issuing provider', async () => {
-        assert.equal(nftFactory !== null, true);
-
-        const minter = await DocumentMinter.at(documentMinterAddress);
-        assert.equal(await minter.symbol(), "NOT9APOST");
-
-        const minted = await minter.mint(
-          accounts[0],
-          `https://bobb.did.pa/index.json`
-        );
-
-        assert.equal(minted.logs[0].event, 'Transfer');
+        console.log(response);
+        // const nftAddress = res.logs[0].args.minterAddress;
+        // const minter = await DocumentMinter.at(nftAddress);
+        // assert.equal(await minter.symbol(), "NOT9APOST");
       });
     });
-    describe('when burning', () => {
-      it('should pay for  service', async () => {
-        assert.equal(nftFactory !== null, true);
-
-        const res = await nftFactory.createMinter(
-          "NOTARIO 9VNO - APOSTILLADO",
-          "NOT9APOST",
-          "0x0a2Cd4F28357D59e9ff26B1683715201Ea53Cc3b",
-
-          false,
-          new BigNumber(2 * 1e18)
-        );
-
-        documentMinterAddress = res.logs[0].args.minterAddress;
-
-        const requestMintResult = await documents.requestMint(
-          documentMinterAddress,
-          `did:ethr:${documentMinterAddress}`,
-          `did:ethr:${accounts[1]}`,
-          false,
-          `https://bobb.did.pa`, {
-          from: accounts[1]
-        }
-        );
-        assert.equal('https://bobb.did.pa', requestMintResult.logs[0].args.tokenURI);
 
 
-
-        const minter = await DocumentMinter.at(documentMinterAddress);
-        assert.equal(await minter.symbol(), "NOT9APOST");
-
-        const minted = await minter.mint(
-          accounts[0],
-          `https://bobb.did.pa/index.json`
-        );
-
-        assert.equal(minted.logs[0].event, 'Transfer');
-
-        await dai.mint(
-          accounts[1],
-          new BigNumber(22 * 10e18)
-        );
-
-        // allowance
-        await dai.approve(
-          documentMinterAddress,
-          new BigNumber(22 * 10e18), {
-
-          from: accounts[1]
-        }
-        );
-
-        await minter.burn(
-          minted.logs[0].args.tokenId, {
-          from: accounts[1],
-          value: new BigNumber(2.4 * 1e18)
-        }
-        );
-      });
-
-    });
 
   });
 });

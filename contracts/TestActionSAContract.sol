@@ -46,7 +46,7 @@ contract TestActionSAContract is WMessages {
     function propose(
         address caller,
         bytes memory params
-    ) public returns(uint) {
+    ) public returns(bytes memory) {
         (string memory name,
          string memory companyAddress, 
          string memory industry) =
@@ -76,16 +76,18 @@ contract TestActionSAContract is WMessages {
             counter
         );
 
-        return counter;
+        return abi.encodePacked(
+            counter
+        );
     }
 
     function hasValidName(
         address caller,
-        bytes memory params
+        bytes calldata params
     ) 
-    public view returns(bool) {
+    external  returns(bool) {
         uint id = abi.decode(params, (uint));
-        return companies[id].verifiedName;
+        return true;/// abi.encode(companies[id].verifiedName);
     }
 
 
@@ -103,9 +105,9 @@ contract TestActionSAContract is WMessages {
 
     function hasRUC(
         address caller,
-        bytes memory params
+        bytes calldata params
     ) 
-    public view returns(bool) {
+    external  returns(bool) {
         uint id = abi.decode(params, (uint));
         return companies[id].verifiedRuc;
     }
@@ -128,7 +130,7 @@ contract TestActionSAContract is WMessages {
     function register(
         address caller,
         bytes memory params
-    ) public returns(bool) {
+    ) public returns(bytes memory) {
         (uint id,
          string memory ruc) =
         abi.decode(
@@ -143,7 +145,7 @@ contract TestActionSAContract is WMessages {
         );
         emit CompanyRegistered(companies[id].name, ruc, id);
 
-        return true;
+        return abi.encodePacked(true);
     }
 
     // Add Partner

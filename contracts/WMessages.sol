@@ -6,6 +6,14 @@ contract WMessages {
     event PropertyChanged(string propName, bytes data);
     event ActionChanged(bytes4 methodSig, bytes request);
     
+    struct ActionRoute {
+        bytes4 selector;
+        address controller;
+        bytes4 nextSelector;
+        bytes4[] conditions;
+        bool[] conditionStatus;
+    }
+
 // A Workflow payload can either be content addressable document or NFT address with supplied token id
     struct WorkflowPayload  {
         // IPLD has containing document

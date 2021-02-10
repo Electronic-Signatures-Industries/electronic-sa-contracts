@@ -16,14 +16,6 @@ contract WFlowRegistry  is WMessages {
 
     event Withdrawn(address indexed payee, uint256 weiAmount);
 
-
-    struct ActionRoute {
-        bytes4 selector;
-        address controller;
-        bytes4 nextSelector;
-        bytes4[] conditions;
-        bool[] conditionStatus;
-    }
     
     event MessageEntryAdded(
         address from,
@@ -99,6 +91,11 @@ contract WFlowRegistry  is WMessages {
         require(
             stablecoin.allowance(msg.sender, address(this)) >= 0,
             "Invalid token allowance"
+        );
+
+        require(
+            conditions.length == conditionStatus.length,
+            "Invalid conditions size"
         );
 
         /* require(

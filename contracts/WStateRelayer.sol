@@ -105,31 +105,39 @@ contract WStateRelayer  is WMessages {
         require(
             jobs[jobId].status  == 0, "Job already completed"
         );
-        bool conditionsCompleted = false;
-        for (uint i = 0;i<registry.getAction(controller, selector).conditions.length;i++) {
-            (bool ok, bytes memory res) =  registry
-            .getAction(controller, selector)
+        ActionRoute memory item = registry.getAction(controller, selector);    
+        // check if it has been whitelisted and purchased
+        require(item.controller != address(0), "Missing topic key");
+
+        bool conditionsCompleted = true;
+        for (uint i = 0;i<item.conditions.length;i++) {
+            (bool ok, bytes memory res) =  item
             .controller
             .call(
-            abi.encodeWithSelector(
-                registry.getAction(controller, selector).conditions[i],
-                msg.sender,
-                jobs[jobId].response
-            )
+                abi.encodeWithSelector(
+                    item.conditions[i],
+                    msg.sender,
+                    jobs[jobId].response
+                )
             );
+        if (!ok){
+          //re-throw the revert with the same revert reason.
+          revertWithData(res);
+          return true;
+        }
 
             (bool conditionResult) = abi.decode(res, (bool));
-            registry.getAction(controller, selector).conditionStatus[i] = conditionResult;
+            item.conditionStatus[i] = conditionResult;
 
             conditionsCompleted = conditionsCompleted && conditionResult;
         }
 
-        if (conditionsCompleted) {
+        if (conditionsCompleted == true) {
             jobs[jobId].status = 1;
             emit MessageRequestCompleted(
-                registry.getAction(controller, selector).controller,
-                registry.getAction(controller, selector).selector,
-                registry.getAction(controller, selector).nextSelector,
+                item.controller,
+                item.selector,
+                item.nextSelector,
                 jobId
             );
         }
