@@ -19,16 +19,17 @@ contract WFlowRegistry  is WMessages {
 
     
     event MessageEntryAdded(
+        bytes32 domainSeparator,
         address from,
         address actionAddress,
         bytes32 id
     );
 
     function getAction(
-        address controller,
+        bytes32 domainSeparator,
         bytes4 selector
     ) public view returns(ActionRoute memory) {
-        return actions[controller][selector];
+        return actions[domainSeparator][selector];
     }
 
 
@@ -72,8 +73,8 @@ contract WFlowRegistry  is WMessages {
     // 0xA1...
 
     function mapAction(
-        address controller,
         bytes32 domainSeparator,
+        address controller,
         bytes4 messageRequest,
         bytes4[] memory conditions,
         bool[] memory conditionStatus,
@@ -122,7 +123,7 @@ contract WFlowRegistry  is WMessages {
         });
 
 
-        // TODO: Update accounting
+        // Update accounting
         //  - create mappings to data provider accounting
         //  - create mappings to protocol fee accounting
         // Transfer tokens to pay service fee
@@ -140,6 +141,7 @@ contract WFlowRegistry  is WMessages {
         accounting[msg.sender] = accounting[msg.sender] + fee;
         accounting[address(this)] = accounting[address(this)] + fee;
         emit MessageEntryAdded(
+            domainSeparator,
             msg.sender,
             controller,
             messageRequest

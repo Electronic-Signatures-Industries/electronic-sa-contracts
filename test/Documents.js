@@ -41,7 +41,12 @@ contract('Async Request Response Message Gateway', accounts => {
           from: accounts[0]
         }
         );
-
+        const domain = await registry.getDomainSeparator(
+          'TestActionSAContract',
+          testDemoContract.address,
+          10,
+          '1'
+        );
         const controller = testDemoContract.address;
         const messageSelector = web3.eth.abi.encodeFunctionSignature(`propose(address,bytes)`);
         const conditions = [
@@ -52,7 +57,8 @@ contract('Async Request Response Message Gateway', accounts => {
         const nextMessage = web3.eth.abi.encodeFunctionSignature(
           `register(address,bytes)`);
         // Create controller mapping for messages
-        const res = await registry.mapMessageToController(
+        const res = await registry.mapAction(
+          domain,
           controller,
           messageSelector,
           conditions,
@@ -72,9 +78,14 @@ contract('Async Request Response Message Gateway', accounts => {
         const messageSelector = web3.eth.abi.encodeFunctionSignature(`propose(address,bytes)`);
 
         // console.log(res.logs[0]);
-
-        const response = await relayer.executeRequestResponse(
-          controller,
+        const domain = await registry.getDomainSeparator(
+          'TestActionSAContract',
+          testDemoContract.address,
+          10,
+          '1'
+        );
+        const response = await relayer.executeAction(
+          domain,
           messageSelector,
           ethers.utils.defaultAbiCoder.encode(['string', 'string', 'string'], [
             "IFESA",
@@ -98,9 +109,14 @@ contract('Async Request Response Message Gateway', accounts => {
         const messageSelector = web3.eth.abi.encodeFunctionSignature(`propose(address,bytes)`);
 
         // console.log(res.logs[0]);
-
-        const response = await relayer.executeJobCondition(
-          controller,
+        const domain = await registry.getDomainSeparator(
+          'TestActionSAContract',
+          testDemoContract.address,
+          10,
+          '1'
+        );
+        const response = await relayer.executeActionConditions(
+          domain,
           messageSelector,
           new BigNumber(reqResId),
         );

@@ -45,7 +45,7 @@ contract WStateRelayer  is WMessages {
     function getNonce(address user) external view returns(uint256 nonce) {
         nonce = nonces[user];
     
-
+    }
     /** NatDoc
      * @dev Send payload message to be process by a WAction smart contract
      * minter
