@@ -11,8 +11,9 @@ contract WFlowRegistry  is WMessages {
     address public owner;
     ERC20Interface public stablecoin;
     uint public fee;
-    mapping (address => mapping( bytes4 => ActionRoute)) public actions;
+    mapping (bytes32 => mapping( bytes4 => ActionRoute)) public actions;
     mapping (address => uint) public accounting;
+    
 
     event Withdrawn(address indexed payee, uint256 weiAmount);
 
@@ -70,8 +71,9 @@ contract WFlowRegistry  is WMessages {
     // ExecutePrescription(uint, uint, string) === bytes32
     // 0xA1...
 
-    function mapMessageToController(
+    function mapAction(
         address controller,
+        bytes32 domainSeparator,
         bytes4 messageRequest,
         bytes4[] memory conditions,
         bool[] memory conditionStatus,
@@ -98,21 +100,27 @@ contract WFlowRegistry  is WMessages {
             "Invalid conditions size"
         );
 
+        require(
+            conditions.length < 6,
+            "Max 5 conditions"
+        );
+
         /* require(
             stablecoin.balanceOf(msg.sender) == (mintingServiceFee.sum(protocolServiceFee)), 
             "MUST SEND FEE BEFORE USE");
         */
 
-        require(actions[controller][messageRequest].controller == address(0), "Address already exists");
+        require(actions[domainSeparator][messageRequest].controller == address(0), "Address already exists");
 
         // register topic and mutation
-        actions[controller][messageRequest] = ActionRoute({
+        actions[domainSeparator][messageRequest] = ActionRoute({
             selector: messageRequest,
             nextSelector: nextMessage,
             controller: controller,
             conditions: conditions,
             conditionStatus: conditionStatus
         });
+
 
         // TODO: Update accounting
         //  - create mappings to data provider accounting
@@ -125,6 +133,10 @@ contract WFlowRegistry  is WMessages {
                 fee),
             "Transfer failed for fee"
         );
+        actionWhitelisting[domainSeparator][messageRequest] = true;
+        actionWhitelisting[domainSeparator][nextMessage] = true;
+
+
         accounting[msg.sender] = accounting[msg.sender] + fee;
         accounting[address(this)] = accounting[address(this)] + fee;
         emit MessageEntryAdded(

@@ -9,6 +9,7 @@ import "./MinLibBytes.sol";
  */
 contract WStateRelayer  is WMessages {
     WFlowRegistry public registry;
+    mapping(address => uint256) public nonces;
     constructor(address wfRegistry) public {
         registry = WFlowRegistry(wfRegistry);
     }
@@ -38,26 +39,33 @@ contract WStateRelayer  is WMessages {
         bytes4 next,
         uint id
     );
+
+
+
+    function getNonce(address user) external view returns(uint256 nonce) {
+        nonce = nonces[user];
+    
+
     /** NatDoc
      * @dev Send payload message to be process by a WAction smart contract
      * minter
      * selfMint
      * tokenURI
      */
-    function executeRequestResponse(
-        address controller,
+    function executeAction(
+        bytes32 domainSeparator,
         bytes4 selector,
         bytes memory params
     ) public returns (uint) {
 
         // check if it has been whitelisted and purchased
-        require(registry.getAction(controller, selector).controller != address(0), "Missing topic key");
+        require(registry.getAction(domainSeparator, selector).controller != address(0), "Missing topic key");
         
         (bool success, bytes memory ret) =  registry
-        .getAction(controller, selector).controller
+        .getAction(domainSeparator, selector).controller
         .call(
             abi.encodeWithSelector(
-                registry.getAction(controller, selector).selector,
+                registry.getAction(domainSeparator, selector).selector,
                 msg.sender,
                 params
                 )
@@ -74,7 +82,7 @@ contract WStateRelayer  is WMessages {
             request: params,
             response: ret,
             selector: selector,
-            next: registry.getAction(controller, selector).nextSelector
+            next: registry.getAction(domainSeparator, selector).nextSelector
         });
         
         emit MessageRelayed(
@@ -94,18 +102,18 @@ contract WStateRelayer  is WMessages {
 
     // Solo puede ser getter
     // El switch de MessageConditionFound, llama al siguiente paso
-    function executeJobCondition(
-        address controller,
+    function executeActionConditions(
+        bytes32 domainSeparator,
         bytes4 selector,
         uint jobId
     ) public returns (bool) {
 
         // check if it has been whitelisted and purchased
-        require(registry.getAction(controller, selector).conditions.length > 0, "Missing topic key");
+        require(registry.getAction(domainSeparator, selector).conditions.length > 0, "Missing topic key");
         require(
             jobs[jobId].status  == 0, "Job already completed"
         );
-        ActionRoute memory item = registry.getAction(controller, selector);    
+        ActionRoute memory item = registry.getAction(domainSeparator, selector);    
         // check if it has been whitelisted and purchased
         require(item.controller != address(0), "Missing topic key");
 
