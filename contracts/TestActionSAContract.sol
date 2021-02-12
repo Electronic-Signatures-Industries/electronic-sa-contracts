@@ -4,7 +4,7 @@ pragma experimental ABIEncoderV2;
 import "./MinLibBytes.sol";
 import "./MessageRoute.sol";
 import "./Whitelist.sol";
-contract TestActionSAContract is Whitelist, MessageRoute {
+contract TestActionSAContract is Maintainer, MessageRoute {
 
  
     struct SociedadAnonima {
@@ -83,7 +83,7 @@ contract TestActionSAContract is Whitelist, MessageRoute {
     ) 
     external  returns(bool) {
         uint id = abi.decode(params, (uint));
-        return true;
+        return companies[id].verifiedName;
     }
 
 
@@ -92,8 +92,7 @@ contract TestActionSAContract is Whitelist, MessageRoute {
         uint id,
         bool ok
     ) 
-    public 
-    onlyWhitelisted
+    public
     propertyChange("verifiedName", abi.encodePacked(ok))
      returns(bool) {
         require(companies[id].verifiedName == false, "Name already verified");
@@ -107,7 +106,6 @@ contract TestActionSAContract is Whitelist, MessageRoute {
         string memory ruc
     ) 
     public
-    onlyWhitelisted
     propertyChange("ruc", abi.encodePacked(ruc))
     returns(bool) {
         require(companies[id].verifiedRuc == false, "RUC already verified");
@@ -158,7 +156,6 @@ contract TestActionSAContract is Whitelist, MessageRoute {
         uint status
     ) 
     public
-    onlyWhitelisted
     propertyChange("status", abi.encodePacked(status))
     returns(bool) {
         companies[id].status = status;

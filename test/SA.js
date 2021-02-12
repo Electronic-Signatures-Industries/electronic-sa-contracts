@@ -137,11 +137,23 @@ contract('SA', accounts => {
         );
 
         assert.equal(res.logs[0].args.controller, controller);
+
+        // let the owner be the only able to update status
+        await registry.setUserWhitelist(
+          accounts[0],
+          web3.eth.abi.encodeFunctionSignature(`setUserWhitelist(address,bytes4,bool)`),
+          true
+        );
+        await registry.setUserWhitelist(
+          accounts[1],
+          web3.eth.abi.encodeFunctionSignature(`setValidName(uint,bool)`),
+          true
+        );
       });
 
     });
-    describe('when executing an async req/res message', () => {
-      it('should send result to next message', async () => {
+    describe('when executing a complete flow', () => {
+      it('should be successfully completedd', async () => {
         assert.equal(registry !== null, true);
 
         const controller = testDemoContract.address;
@@ -154,17 +166,36 @@ contract('SA', accounts => {
           10,
           '1'
         );
-        const response = await relayer.executeAction(
+
+        // Propose
+        let response = await relayer.executeAction(
           domain,
           messageSelector,
           ethers.utils.defaultAbiCoder.encode(['string', 'string'], [
             "Industrias de Firmas Electronicas",
-            "https://ifesa.ipfs.pa/",
+            "https  ://ifesa.ipfs.pa/",
           ])
         );
+        console.log(response.logs[1].args.id);
+        // Set name has been verified offchain
+        response = await testDemoContract.setValidName(
+          response.logs[1].args.id,
+          true,{
+            from: accounts[1]
+          }
+        );
 
-        console.log(response.logs[0].args)
-        reqResId = 1; // response.logs[0].args.id;
+        reqResId = response.logs[1].args.id;
+        
+        // execute conditions
+        response = await relayer.executeActionConditions(
+          domain,
+          messageSelector,
+          new BigNumber(reqResId),
+        );
+
+        console.log(response.logs);
+   
         // const nftAddress = res.logs[0].args.minterAddress;
         // const minter = await DocumentMinter.at(nftAddress);
         // assert.equal(await minter.symbol(), "NOT9APOST");

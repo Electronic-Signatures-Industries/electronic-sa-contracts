@@ -129,6 +129,7 @@ contract ActionRouteRegistry is Whitelist, MessageRoute {
         for (uint i = 0;i < whitelist.length; i++) {
             userWhitelist[whitelist[i]][messageRequest] = true;
         }
+        
 
         // Update accounting
         //  - create mappings to data provider accounting
