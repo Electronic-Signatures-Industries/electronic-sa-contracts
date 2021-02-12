@@ -1,11 +1,10 @@
 pragma solidity ^0.7.0;
 pragma experimental ABIEncoderV2;
 
-import "./WFlowRegistry.sol";
 import "./MinLibBytes.sol";
-import "./WMessages.sol";
-
-contract TestActionSAContract is WMessages {
+import "./MessageRoute.sol";
+import "./Whitelist.sol";
+contract TestActionSAContract is Whitelist, MessageRoute {
 
  
     struct SociedadAnonima {
@@ -31,17 +30,23 @@ contract TestActionSAContract is WMessages {
         address member;
     }
 
-    mapping (uint => mapping( uint => Member)) public members;
+    mapping (uint => mapping(uint => Member)) public members;
 
     enum WorkflowState {
         SearchName,
+        RequestKYC,
         AddMembers,
+        KYCCompleted,
         RegisterCompany, // Name, Members, Capital, 
         NotaryStamped,
         Registered,
         OperationsRequested,
         OperationsNoticeCompleted
     }
+
+    event RequestBoardMembersKYC(
+        uint indexed id
+    );
 
     event CompanyAdded(
         string name,
@@ -61,15 +66,13 @@ contract TestActionSAContract is WMessages {
         uint indexed  id
     );
 
+
     uint public counter;
     mapping(uint => SociedadAnonima) public companies;
-    mapping(address => mapping(string => bool)) public userWhitelist; 
 
-    address public owner;
     constructor(address _owner) {
         owner = _owner;
     }
-
     /* Async Message Flow Functions */
 
     /* Property Getters and Setters */
@@ -89,12 +92,12 @@ contract TestActionSAContract is WMessages {
         uint id,
         bool ok
     ) 
-    public returns(bool) {
-        require(userWhitelist[msg.sender]["setValidName"], "Invalid sender");
+    public 
+    onlyWhitelisted
+    propertyChange("verifiedName", abi.encodePacked(ok))
+     returns(bool) {
         require(companies[id].verifiedName == false, "Name already verified");
         companies[id].verifiedName = ok;
-        bytes memory params = abi.encodePacked(ok);
-        emit PropertyChanged("verifiedName", params);
         return true;
     }
 
@@ -103,13 +106,13 @@ contract TestActionSAContract is WMessages {
         uint id,
         string memory ruc
     ) 
-    public returns(bool) {
-        require(userWhitelist[msg.sender]["setValidName"], "Invalid sender");
+    public
+    onlyWhitelisted
+    propertyChange("ruc", abi.encodePacked(ruc))
+    returns(bool) {
         require(companies[id].verifiedRuc == false, "RUC already verified");
         companies[id].ruc = ruc;
         companies[id].verifiedRuc = true;
-        bytes memory params = abi.encodePacked(ruc);
-        emit PropertyChanged("ruc", params);
         return true;
     }
 
@@ -122,15 +125,44 @@ contract TestActionSAContract is WMessages {
         return companies[id].verifiedRuc;
     }
 
+    function hasMemberKYCCompleted(
+        address caller,
+        bytes calldata params
+    ) 
+    external  returns(bool) {
+        uint id = abi.decode(params, (uint));
+        return companies[id].status == uint(WorkflowState.KYCCompleted);
+    }
+
+    function hasRegistered(
+        address caller,
+        bytes calldata params
+    ) 
+    external  returns(bool) {
+        uint id = abi.decode(params, (uint));
+        return companies[id].status == uint(WorkflowState.Registered);
+    }
+
+
+    function hasNotarized(
+        address caller,
+        bytes calldata params
+    ) 
+    external  returns(bool) {
+        uint id = abi.decode(params, (uint));
+        return companies[id].status == uint(WorkflowState.NotaryStamped);
+    }
+
     function setStatus(
         uint id,
         uint status
     ) 
-    public returns(bool) {
-        require(userWhitelist[msg.sender]["setStatus"], "Invalid sender");
+    public
+    onlyWhitelisted
+    propertyChange("status", abi.encodePacked(status))
+    returns(bool) {
         companies[id].status = status;
         bytes memory params = abi.encodePacked(status);
-        emit PropertyChanged("status", params);
         return true;
     }
 
@@ -184,8 +216,9 @@ contract TestActionSAContract is WMessages {
     function addMemberKYC(
         address caller,
         bytes memory params
-    ) public returns(uint) {
-        require(userWhitelist[msg.sender]["addMemberKYC"], "Invalid sender");
+    ) public
+      onlyWhitelisted
+     returns(uint) {
 
         (uint id,
         address member,
@@ -194,6 +227,8 @@ contract TestActionSAContract is WMessages {
             params,
             (uint, address, string) 
         );
+
+        require(companies[id].status == uint(WorkflowState.RequestKYC), "Invalid state");
 
         uint memberId = companies[id].memberCount;
         members[id][memberId] = Member({
@@ -219,14 +254,14 @@ contract TestActionSAContract is WMessages {
 
     }
 
+    // Client must call setStatus once he enrolls 3 KYC Profiles
+
 
     // Register SA
     function register(
         address caller,
         bytes memory params
-    ) public returns(bool) {
-        require(userWhitelist[msg.sender]["register"], "Invalid sender");
-        
+    ) public onlyWhitelisted returns(bool) {
         (uint id,
         string memory metadataURI,
         address legalResidentAgent,
@@ -236,6 +271,7 @@ contract TestActionSAContract is WMessages {
             (uint, string, address, string) 
         );
 
+        require(companies[id].status == uint(WorkflowState.AddMembers), "Invalid state");
 
         companies[id].legalResidentAgent = legalResidentAgent;
         companies[id].legalResidentAgentDID = legalResidentAgentDID;
@@ -253,14 +289,13 @@ contract TestActionSAContract is WMessages {
     function notaryStamp(
         address caller,
         bytes memory params
-    ) public returns(bool) {
-        require(userWhitelist[msg.sender]["notaryStamp"], "Invalid sender");
-
+    ) public onlyWhitelisted returns(bool) {
         (uint id) =
         abi.decode(
             params,
             (uint) 
         );
+        require(companies[id].status == uint(WorkflowState.RegisterCompany), "Invalid state");
 
         companies[id].status = uint(WorkflowState.NotaryStamped);
 
@@ -272,17 +307,39 @@ contract TestActionSAContract is WMessages {
         return true;
     }
 
-    function companyRegisterd(
+
+    function requestKYC(
         address caller,
         bytes memory params
-    ) public returns(bool) {
-        require(userWhitelist[msg.sender]["addMemberKYC"], "Invalid sender");
- 
+    ) public onlyWhitelisted returns(bool) {
         (uint id) =
         abi.decode(
             params,
             (uint) 
         );
+        companies[id].status = uint(WorkflowState.RequestKYC);
+
+        emit ActionChanged(
+            getMethodSig(msg.data), 
+            params
+        );
+
+        emit RequestBoardMembersKYC(id);
+
+        return true;
+    }
+
+    function completeCompanyRegistration(
+        address caller,
+        bytes memory params
+    ) public onlyWhitelisted returns(bool) {
+        (uint id) =
+        abi.decode(
+            params,
+            (uint) 
+        );
+
+        require(companies[id].status == uint(WorkflowState.NotaryStamped), "Invalid state");
 
         companies[id].status = uint(WorkflowState.Registered);
 

@@ -5,7 +5,7 @@ const BigNumber = require('bignumber.js');
 const { ethers } = require('ethers');
 const { assert } = require('chai');
 
-contract('Async Request Response Message Gateway', accounts => {
+contract('SA', accounts => {
   let dai;
   let owner;
   let registry;
@@ -16,7 +16,7 @@ contract('Async Request Response Message Gateway', accounts => {
   let StateRelayer = artifacts.require('StateRelayer');
   let TestActionSAContract = artifacts.require('TestActionSAContract');
   let reqResId;
-  contract('#ActionRouteRegistry', () => {
+  contract('#SA', () => {
     before(async () => {
       owner = accounts[0];
       dai = await TestDAI.deployed();
@@ -48,15 +48,86 @@ contract('Async Request Response Message Gateway', accounts => {
           '1'
         );
         const controller = testDemoContract.address;
-        const messageSelector = web3.eth.abi.encodeFunctionSignature(`propose(address,bytes)`);
-        const conditions = [
-          web3.eth.abi.encodeFunctionSignature(`hasRUC(address,bytes)`),
+        let messageSelector = web3.eth.abi.encodeFunctionSignature(`propose(address,bytes)`);
+        let conditions = [
           web3.eth.abi.encodeFunctionSignature(`hasValidName(address,bytes)`),
         ];
-        const conditionStatus = [false, false];
-        const whitelist = [];
+        let conditionStatus = [false];
+        let whitelist = [];
         // Create controller mapping for messages
-        const res = await registry.mapAction(
+        let res = await registry.mapAction(
+          domain,
+          controller,
+          messageSelector,
+          conditions,
+          conditionStatus,
+          whitelist
+        );
+
+        assert.equal(res.logs[0].args.controller, controller);
+
+        messageSelector = web3.eth.abi.encodeFunctionSignature(`requestKYC(address,bytes)`);
+        conditions = [];
+        conditionStatus = [];
+        whitelist = [accounts[0], accounts[1], accounts[2]];
+        // Create controller mapping for messages
+        res = await registry.mapAction(
+          domain,
+          controller,
+          messageSelector,
+          conditions,
+          conditionStatus,
+          whitelist
+        );
+
+        assert.equal(res.logs[0].args.controller, controller);
+
+        messageSelector = web3.eth.abi.encodeFunctionSignature(`addMemberKYC(address,bytes)`);
+        conditions = [
+          web3.eth.abi.encodeFunctionSignature(`hasMemberKYCCompleted(address,bytes)`),
+        ];
+        conditionStatus = [false];
+        whitelist = [accounts[0], accounts[1], accounts[2]];
+        // Create controller mapping for messages
+        res = await registry.mapAction(
+          domain,
+          controller,
+          messageSelector,
+          conditions,
+          conditionStatus,
+          whitelist
+        );
+
+        assert.equal(res.logs[0].args.controller, controller);
+
+
+        messageSelector = web3.eth.abi.encodeFunctionSignature(`register(address,bytes)`);
+        conditions = [
+          web3.eth.abi.encodeFunctionSignature(`hasRegistered(address,bytes)`),
+        ];
+        conditionStatus = [false];
+        whitelist = [accounts[0], accounts[1], accounts[2]];
+        // Create controller mapping for messages
+        res = await registry.mapAction(
+          domain,
+          controller,
+          messageSelector,
+          conditions,
+          conditionStatus,
+          whitelist
+        );
+
+        assert.equal(res.logs[0].args.controller, controller);
+
+
+        messageSelector = web3.eth.abi.encodeFunctionSignature(`notaryStamp(address,bytes)`);
+        conditions = [
+          web3.eth.abi.encodeFunctionSignature(`hasNotarized(address,bytes)`),
+        ];
+        conditionStatus = [false];
+        whitelist = [accounts[0], accounts[1], accounts[2]];
+        // Create controller mapping for messages
+        res = await registry.mapAction(
           domain,
           controller,
           messageSelector,

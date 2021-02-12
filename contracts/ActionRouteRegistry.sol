@@ -2,13 +2,13 @@ pragma solidity ^0.7.0;
 pragma experimental ABIEncoderV2;
 
 import "./ERC20Interface.sol";
-import "./WMessages.sol";
+import "./MessageRoute.sol";
+import "./Whitelist.sol";
 
 /**
  * Maintains workflow state machine flow
  */
-contract WFlowRegistry  is WMessages {
-    address public owner;
+contract ActionRouteRegistry is Whitelist, MessageRoute {
     ERC20Interface public stablecoin;
     uint public fee;
     mapping (bytes32 => mapping( bytes4 => ActionRoute)) public actions;
@@ -21,7 +21,7 @@ contract WFlowRegistry  is WMessages {
     event MessageEntryAdded(
         bytes32 domainSeparator,
         address from,
-        address actionAddress,
+        address controller,
         bytes32 id
     );
 
@@ -78,7 +78,7 @@ contract WFlowRegistry  is WMessages {
         bytes4 messageRequest,
         bytes4[] memory conditions,
         bool[] memory conditionStatus,
-        bytes4 nextMessage
+        address[] memory whitelist
     )
         external
         payable
@@ -106,6 +106,11 @@ contract WFlowRegistry  is WMessages {
             "Max 5 conditions"
         );
 
+        require(
+            whitelist.length < 6,
+            "Max 5 address whitelist"
+        );
+
         /* require(
             stablecoin.balanceOf(msg.sender) == (mintingServiceFee.sum(protocolServiceFee)), 
             "MUST SEND FEE BEFORE USE");
@@ -116,12 +121,14 @@ contract WFlowRegistry  is WMessages {
         // register topic and mutation
         actions[domainSeparator][messageRequest] = ActionRoute({
             selector: messageRequest,
-            nextSelector: nextMessage,
             controller: controller,
             conditions: conditions,
             conditionStatus: conditionStatus
         });
 
+        for (uint i = 0;i < whitelist.length; i++) {
+            userWhitelist[whitelist[i]][messageRequest] = true;
+        }
 
         // Update accounting
         //  - create mappings to data provider accounting
@@ -135,7 +142,6 @@ contract WFlowRegistry  is WMessages {
             "Transfer failed for fee"
         );
         actionWhitelisting[domainSeparator][messageRequest] = true;
-        actionWhitelisting[domainSeparator][nextMessage] = true;
 
 
         accounting[msg.sender] = accounting[msg.sender] + fee;

@@ -1,17 +1,17 @@
 pragma solidity ^0.7.0;
 pragma experimental ABIEncoderV2;
 
-import "./WFlowRegistry.sol";
+import "./ActionRouteRegistry.sol";
 import "./MinLibBytes.sol";
 
 /**
  *  Manages message state flows
  */
-contract WStateRelayer  is WMessages {
-    WFlowRegistry public registry;
+contract StateRelayer  is MessageRoute {
+    ActionRouteRegistry public registry;
     mapping(address => uint256) public nonces;
     constructor(address wfRegistry) public {
-        registry = WFlowRegistry(wfRegistry);
+        registry = ActionRouteRegistry(wfRegistry);
     }
 
     uint public jobCounter;
@@ -23,7 +23,6 @@ contract WStateRelayer  is WMessages {
         bytes request;
         bytes response;
         bytes4 selector;
-        bytes4 next;
     }
 
     event MessageRelayed(
@@ -36,7 +35,6 @@ contract WStateRelayer  is WMessages {
     event MessageRequestCompleted(
         address controller,
         bytes4 selector,
-        bytes4 next,
         uint id
     );
 
@@ -81,8 +79,7 @@ contract WStateRelayer  is WMessages {
             id: jobCounter,
             request: params,
             response: ret,
-            selector: selector,
-            next: registry.getAction(domainSeparator, selector).nextSelector
+            selector: selector
         });
         
         emit MessageRelayed(
@@ -145,7 +142,6 @@ contract WStateRelayer  is WMessages {
             emit MessageRequestCompleted(
                 item.controller,
                 item.selector,
-                item.nextSelector,
                 jobId
             );
         }

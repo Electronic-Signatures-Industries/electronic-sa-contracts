@@ -1,10 +1,9 @@
 const BigNumber = require('bignumber.js');
 const fs = require('fs');
 const TestActionSAContract = artifacts.require('TestActionSAContract');
-const WMessages = artifacts.require('WMessages');
 const DAI = artifacts.require('DAI');
-const WFlowRegistry = artifacts.require('WFlowRegistry');
-const WStateRelayer = artifacts.require('WStateRelayer');
+const ActionRouteRegistry = artifacts.require('ActionRouteRegistry');
+const StateRelayer = artifacts.require('StateRelayer');
 
 const ContractImportBuilder = require('../contract-import-builder');
 
@@ -27,11 +26,11 @@ module.exports = async (deployer, network, accounts) => {
   dai = await DAI.deployed();
   //   daiaddress = dai.address
   // }
-  await deployer.deploy(WFlowRegistry, dai.address);
-  const registry = await WFlowRegistry.deployed();
+  await deployer.deploy(ActionRouteRegistry, dai.address);
+  const registry = await ActionRouteRegistry.deployed();
   await registry.setProtocolConfig(new BigNumber(2 * 1e18));
-  await deployer.deploy(WStateRelayer, registry.address);
-  const relayer = await WStateRelayer.deployed();
+  await deployer.deploy(StateRelayer, registry.address);
+  const relayer = await StateRelayer.deployed();
 
   await deployer.deploy(TestActionSAContract, accounts[0]);
   const demo = await TestActionSAContract.deployed();
@@ -45,16 +44,16 @@ module.exports = async (deployer, network, accounts) => {
   );
 
   builder.addContract(
-    'WFlowRegistry',
+    'ActionRouteRegistry',
     registry,
     registry.address,
     network
   );
 
   builder.addContract(
-    'WStateRelayer',
-    WStateRelayer,
-    WStateRelayer.address,
+    'StateRelayer',
+    StateRelayer,
+    StateRelayer.address,
     network
   );
   builder.addContract(
