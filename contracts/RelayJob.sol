@@ -19,7 +19,7 @@ contract RelayJob {
         bytes memory ret,
         bytes4 selector
     ) 
-    public returns(uint) {
+    external returns(uint) {
 
         jobs[jobCounter] = MessageRequest({
             status: 0,
@@ -45,6 +45,14 @@ contract RelayJob {
     ) 
     public returns(bool) {
         return jobs[id].selector != bytes4(0);
+    }
+
+
+    function get(
+       uint id
+    ) 
+    public returns(MessageRequest memory) {
+        return jobs[id];
     }
 }
 

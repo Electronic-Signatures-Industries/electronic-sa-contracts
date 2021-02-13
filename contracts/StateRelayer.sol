@@ -20,55 +20,24 @@ contract StateRelayer  is MessageRoute {
         registry = ActionRouteRegistry(wfRegistry);
     }
 
-    modifier registerState(
+    function validateState(
         bytes32 domainSeparator,
         bytes4 selector
-    ) {
+    ) public returns(bool) {
 
         // check if it has been whitelisted and purchased
-        require(registry.getAction(domainSeparator, selector).controller != address(0), "Missing topic key");
-        _;       
- 
-    }
-    /** NatDoc
-     * @dev Send payload message to be process by a WAction smart contract
-     * minter
-     * selfMint
-     * tokenURI
-     */
-    function executeAction(
-        bytes32 domainSeparator,
-        bytes4 selector,
-        bytes memory params
-    ) public returns (uint) {
+        require(registry.getAction(domainSeparator, selector).controller != address(0), "Missing topic key");   
 
-        // check if it has been whitelisted and purchased
-        require(registry.getAction(domainSeparator, selector).controller != address(0), "Missing topic key");
-        
-        (bool success, bytes memory ret) =  registry
-        .getAction(domainSeparator, selector).controller
-        .call(
-            abi.encodeWithSelector(
-                registry.getAction(domainSeparator, selector).selector,
-                msg.sender,
-                params
-                )
-        );
-        if (!success){
-          //re-throw the revert with the same revert reason.
-          revertWithData(ret);
-          return 0;
-        }
-        uint jobCounter = relayJob.addJob(params, ret, selector);
-        
-        emit MessageRelayed(
-            params, 
-            ret,
-            jobCounter
-        );
-
-        return jobCounter;
+        return true;
     }
+
+    function addJob(
+        bytes memory params,
+        bytes memory ret,
+        bytes4 selector
+    )   public returns(uint) {
+        return relayJob.addJob(params, ret, selector);
+    } 
 
     function revertWithData(bytes memory data) internal pure {
         assembly {
@@ -101,7 +70,7 @@ contract StateRelayer  is MessageRoute {
                 abi.encodeWithSelector(
                     item.conditions[i],
                     msg.sender,
-                    relayJob.jobs(jobId).response
+                    relayJob.get(jobId).response
                 )
             );
         if (!ok){
@@ -117,7 +86,7 @@ contract StateRelayer  is MessageRoute {
         }
 
         if (conditionsCompleted == true) {
-            relayJob.jobs(jobId).status = 1;
+            relayJob.get(jobId).status =1;
             emit MessageRequestCompleted(
                 item.controller,
                 item.selector,

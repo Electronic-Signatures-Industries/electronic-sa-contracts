@@ -47,7 +47,7 @@ contract Maintainer {
         uint depositAmount;
     }
 
-    // Worker count
+    // Wor995ker count
 
 
     uint public workerCount;
@@ -86,13 +86,10 @@ contract Maintainer {
         owner = msg.sender;
     }
 
-    function depositsOf(address worker) public view returns (uint256) {
-        return deposits[worker];
-    }
 
     /**
      * @dev Stores the sent amount as credit to be withdrawn.
-     * @param payee The destination address of the funds.
+     * @param relayJobId The job id.
      */
     function createAssignmentAndEscrow(
         uint relayJobId,
@@ -118,11 +115,12 @@ contract Maintainer {
         address paymentAddress
     ) public virtual  returns(uint) {
        
-        workers[workerCount] = Worker({
+        workers[msg.sender] = Worker({
             name: name,
-            paymentAddress: paymentAddress,
+            accountsPayable: paymentAddress,
             status: uint(WorkerStatus.IDLE),
-            metadataURI: metadataURI
+            metadataURI: metadataURI,
+            verified: false
         });
         workerCount++;
         emit WorkerEnrolled(workerCount);
@@ -142,7 +140,7 @@ contract Maintainer {
     function withdraw(address payable payee) public returns(bool) {
         require(workerTasks[payee].depositAmount > 0, "Invalid access");
         uint payment = workerTasks[payee].depositAmount;
-        workerTasks[payee].depositAmount] = 0;
+        workerTasks[payee].depositAmount = 0;
         payee.transfer(payment);
 
         emit Withdrawn(payee, payment);

@@ -4,7 +4,7 @@ pragma experimental ABIEncoderV2;
 contract MessageRoute {
 
     event PropertyChanged(string propName, bytes data);
-    event ActionChanged(bytes4 methodSig, bytes request);
+    event ActionChanged(bytes4 methodSig);
     
     struct ActionRoute {
         bytes4 selector;

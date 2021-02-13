@@ -3,14 +3,14 @@ pragma experimental ABIEncoderV2;
 
 import "./MinLibBytes.sol";
 import "./MessageRoute.sol";
-
-
+import "./StateRelayer.sol";
+import "./Utils.sol";
 import "./Maintainer.sol";
 
-contract TestActionSAContract is StateRelayer {
-
- 
+contract TestActionSAContract is MessageRoute, Utils {
+    address public owner;
     Maintainer private maintainer;
+    StateRelayer private stateRelayer;
     struct SociedadAnonima {
         // Company Name
         string name;
@@ -74,9 +74,14 @@ contract TestActionSAContract is StateRelayer {
     uint public counter;
     mapping(uint => SociedadAnonima) public companies;
 
-    constructor(address _owner, address _maintainer) {
-        maintainer = _maintainer;
+    constructor(
+        address _owner, 
+        address _maintainer,
+        address _stateRelayer
+    ) {
+        maintainer = Maintainer(_maintainer);
         owner = _owner;
+        stateRelayer = StateRelayer(_stateRelayer);
     }
     /* Async Message Flow Functions */
 
@@ -177,17 +182,27 @@ contract TestActionSAContract is StateRelayer {
         return companies[id].status == id;
     }
 
+    function getDomain() 
+    public pure returns(bytes32) {
+        return this.getDomainSeparator(
+            getDomain(),
+            "TestActionSAContract",
+            address(this),
+            10,
+            "1"
+            );
+    }
+
     // Create SA
-    function propose(
-        address caller,
-        bytes memory params
-    ) public returns(uint) {
-        (string memory name,
+    function propose(string memory name,
         address agent,
-         string memory metadataURI) =
-        abi.decode(
-            params,
-            (string, string) 
+         string memory metadataURI
+    ) public
+    returns(uint) {
+
+        stateRelayer.validateState(
+            getDomain(),
+            getMethodSig(msg.data)
         );
 
         companies[counter] = SociedadAnonima({
@@ -203,12 +218,14 @@ contract TestActionSAContract is StateRelayer {
         });
         counter++;
 
-        uint jobCounter = relayJob.addJob(abi.encodePacked(counter), selector);
+        uint jobCounter = stateRelayer.addJob(
+            abi.encodePacked(counter), 
+            getMethodSig(msg.data)
+        );
         
         emit MessageRelayed(
             jobCounter
         );
-
 
         emit CompanyAdded(
             name,
@@ -220,20 +237,17 @@ contract TestActionSAContract is StateRelayer {
 
 
     function addMemberKYC(
-        address caller,
-        bytes memory params
+        uint id,
+        address member,
+         string memory did
     ) public
-      onlyWhitelisted
+      
      returns(uint) {
 
-        (uint id,
-        address member,
-         string memory did) =
-        abi.decode(
-            params,
-            (uint, address, string) 
+        stateRelayer.validateState(
+            getDomain(),
+            getMethodSig(msg.data)
         );
-
         require(companies[id].status == uint(WorkflowState.RequestKYC), "Invalid state");
 
         uint memberId = companies[id].memberCount;
@@ -244,11 +258,16 @@ contract TestActionSAContract is StateRelayer {
 
         companies[id].memberCount = companies[id].memberCount + 1;
 
-        emit ActionChanged(
-            getMethodSig(msg.data), 
-            params
+        
+        uint jobCounter = stateRelayer.addJob(
+            abi.encodePacked(counter), 
+            getMethodSig(msg.data)
         );
         
+        emit MessageRelayed(
+            jobCounter
+        );
+
         emit MemberAdded(
             did,
             member,
@@ -265,18 +284,17 @@ contract TestActionSAContract is StateRelayer {
 
     // Register SA
     function register(
-        address caller,
-        bytes memory params
-    ) public onlyWhitelisted returns(bool) {
-        (uint id,
+        uint id,
         string memory metadataURI,
         address legalResidentAgent,
-         string memory legalResidentAgentDID) =
-        abi.decode(
-            params,
-            (uint, string, address, string) 
+        string memory legalResidentAgentDID
+   ) public  returns(bool) {
+       
+        stateRelayer.validateState(
+            getDomain(),
+            getMethodSig(msg.data)
         );
-
+        
         require(companies[id].status == uint(WorkflowState.AddMembers), "Invalid state");
 
         companies[id].legalResidentAgent = legalResidentAgent;
@@ -284,30 +302,40 @@ contract TestActionSAContract is StateRelayer {
         companies[id].metadataURI = metadataURI;
         companies[id].status = uint(WorkflowState.RegisterCompany);
 
-        emit ActionChanged(
-            getMethodSig(msg.data), 
-            params
+
+        uint jobCounter = stateRelayer.addJob(
+            abi.encodePacked(counter), 
+            getMethodSig(msg.data)
         );
+        
+        emit MessageRelayed(
+            jobCounter
+        );
+
 
         return true;
     }
 
     function notaryStamp(
-        address caller,
-        bytes memory params
-    ) public onlyWhitelisted returns(bool) {
-        (uint id) =
-        abi.decode(
-            params,
-            (uint) 
+        uint id
+    ) public  returns(bool) {
+        
+        stateRelayer.validateState(
+            getDomain(),
+            getMethodSig(msg.data)
         );
+
         require(companies[id].status == uint(WorkflowState.RegisterCompany), "Invalid state");
 
         companies[id].status = uint(WorkflowState.NotaryStamped);
 
-        emit ActionChanged(
-            getMethodSig(msg.data), 
-            params
+        uint jobCounter = stateRelayer.addJob(
+            abi.encodePacked(counter), 
+            getMethodSig(msg.data)
+        );
+        
+        emit MessageRelayed(
+            jobCounter
         );
 
         return true;
@@ -315,20 +343,16 @@ contract TestActionSAContract is StateRelayer {
 
 
     function requestKYC(
-        address caller,
-        bytes memory params
-    ) public onlyWhitelisted returns(bool) {
-        (uint id) =
-        abi.decode(
-            params,
-            (uint) 
-        );
-        companies[id].status = uint(WorkflowState.RequestKYC);
+        uint id
+    ) public  returns(bool) {
 
-        emit ActionChanged(
-            getMethodSig(msg.data), 
-            params
+
+        stateRelayer.validateState(
+            getDomain(),
+            getMethodSig(msg.data)
         );
+
+        companies[id].status = uint(WorkflowState.RequestKYC);
 
         emit RequestBoardMembersKYC(id);
 
@@ -336,22 +360,21 @@ contract TestActionSAContract is StateRelayer {
     }
 
     function completeCompanyRegistration(
-        address caller,
-        bytes memory params
-    ) public onlyWhitelisted returns(bool) {
-        (uint id) =
-        abi.decode(
-            params,
-            (uint) 
+        uint id
+    ) public  returns(bool) {
+   
+        stateRelayer.validateState(
+            getDomain(),
+            getMethodSig(msg.data)
         );
+
 
         require(companies[id].status == uint(WorkflowState.NotaryStamped), "Invalid state");
 
         companies[id].status = uint(WorkflowState.Registered);
 
         emit ActionChanged(
-            getMethodSig(msg.data), 
-            params
+            getMethodSig(msg.data)
         );
 
         return true;
