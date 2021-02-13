@@ -20,6 +20,20 @@ contract MessageRoute {
     );
 
 
+
+    event MessageRelayed(
+        bytes request,
+        bytes response,
+        uint id
+    );
+
+
+    event MessageRequestCompleted(
+        address controller,
+        bytes4 selector,
+        uint id
+    );
+
     modifier propertyChange(string memory field, bytes memory params) {
         _;
         emit PropertyChanged(field, params);

@@ -3,46 +3,32 @@ pragma experimental ABIEncoderV2;
 
 import "./ActionRouteRegistry.sol";
 import "./MinLibBytes.sol";
+import "./RelayJob.sol";
 
 /**
  *  Manages message state flows
  */
 contract StateRelayer  is MessageRoute {
     ActionRouteRegistry public registry;
-    mapping(address => uint256) public nonces;
-    constructor(address wfRegistry) public {
+    RelayJob public relayJob;
+
+    constructor(
+        address wfRegistry,
+        address relayJobService
+    ) public {
+        relayJob = RelayJob(relayJobService);
         registry = ActionRouteRegistry(wfRegistry);
     }
 
-    uint public jobCounter;
-    mapping (uint => MessageRequest) public jobs;
+    modifier registerState(
+        bytes32 domainSeparator,
+        bytes4 selector
+    ) {
 
-    struct MessageRequest {
-        uint status;
-        uint id;
-        bytes request;
-        bytes response;
-        bytes4 selector;
-    }
-
-    event MessageRelayed(
-        bytes request,
-        bytes response,
-        uint id
-    );
-
-
-    event MessageRequestCompleted(
-        address controller,
-        bytes4 selector,
-        uint id
-    );
-
-
-
-    function getNonce(address user) external view returns(uint256 nonce) {
-        nonce = nonces[user];
-    
+        // check if it has been whitelisted and purchased
+        require(registry.getAction(domainSeparator, selector).controller != address(0), "Missing topic key");
+        _;       
+ 
     }
     /** NatDoc
      * @dev Send payload message to be process by a WAction smart contract
@@ -73,14 +59,7 @@ contract StateRelayer  is MessageRoute {
           revertWithData(ret);
           return 0;
         }
-        jobCounter++;
-        jobs[jobCounter] = MessageRequest({
-            status: 0,
-            id: jobCounter,
-            request: params,
-            response: ret,
-            selector: selector
-        });
+        uint jobCounter = relayJob.addJob(params, ret, selector);
         
         emit MessageRelayed(
             params, 
@@ -106,9 +85,9 @@ contract StateRelayer  is MessageRoute {
     ) public returns (bool) {
 
         // check if it has been whitelisted and purchased
-        require(registry.getAction(domainSeparator, selector).conditions.length > 0, "Missing topic key");
+        require(registry.getAction(domainSeparator, selector).conditions.length > 0, "Missing action key");
         require(
-            jobs[jobId].status  == 0, "Job already completed"
+            relayJob.hasInit(jobId), "Job already completed"
         );
         ActionRoute memory item = registry.getAction(domainSeparator, selector);    
         // check if it has been whitelisted and purchased
@@ -122,7 +101,7 @@ contract StateRelayer  is MessageRoute {
                 abi.encodeWithSelector(
                     item.conditions[i],
                     msg.sender,
-                    jobs[jobId].response
+                    relayJob.jobs(jobId).response
                 )
             );
         if (!ok){
@@ -138,7 +117,7 @@ contract StateRelayer  is MessageRoute {
         }
 
         if (conditionsCompleted == true) {
-            jobs[jobId].status = 1;
+            relayJob.jobs(jobId).status = 1;
             emit MessageRequestCompleted(
                 item.controller,
                 item.selector,

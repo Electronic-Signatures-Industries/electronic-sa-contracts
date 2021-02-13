@@ -1,20 +1,19 @@
 pragma solidity ^0.7.0;
 pragma experimental ABIEncoderV2;
 
-
-import "./ActionRouteRegistry.sol";
+import "./RelayJob.sol";
 import "./MinLibBytes.sol";
 import "./MessageRoute.sol";
 import "./Whitelist.sol";
 
 contract Maintainer {
 
-    ActionRouteRegistry public registry;
+    address public owner;
+    RelayJob public relayJob;
  
-    event Deposited(address indexed payee, uint256 weiAmount);
+    event Created(uint id);
+    event WorkerEnrolled(uint id);
     event Withdrawn(address indexed payee, uint256 weiAmount);
-
-    mapping(address => uint256) private deposits;
 
     enum WorkerStatus {
         IDLE,
@@ -45,7 +44,7 @@ contract Maintainer {
         string name;
         uint relayJobId;
         uint status;
-        uint assignmentValue;
+        uint depositAmount;
     }
 
     // Worker count
@@ -82,8 +81,9 @@ contract Maintainer {
     // Worker assign to a task
     mapping (address => Assignment) public workerTasks;
 
-    constructor(address wfRegistry) public {
-        registry = ActionRouteRegistry(wfRegistry);
+    constructor(address _relayJob) public {
+        relayJob = RelayJob(_relayJob);
+        owner = msg.sender;
     }
 
     function depositsOf(address worker) public view returns (uint256) {
@@ -94,12 +94,39 @@ contract Maintainer {
      * @dev Stores the sent amount as credit to be withdrawn.
      * @param payee The destination address of the funds.
      */
-    function deposit(uint relayJobId, address payee) public payable virtual  {
-        require(registry.)
+    function createAssignmentAndEscrow(
+        uint relayJobId,
+        string memory name
+    ) public payable virtual  returns(uint) {
+       require(relayJob.exists(relayJobId), "No job id found");
+       
         uint256 amount = msg.value;
-        _deposits[relayJobId] = _deposits[relayJobId] + amount;
+        assignments[assignmentCount] = Assignment({
+            name: name,
+            relayJobId: relayJobId,
+            status: uint(AssignmentStatus.INIT),
+            depositAmount: msg.value
+        });
+        assignmentCount++;
+        emit Created(assignmentCount);
+        return assignmentCount;
+    }
 
-        emit Deposited(relayJobId, amount);
+    function enrollAsWorker(
+        string memory name,
+        string memory metadataURI,
+        address paymentAddress
+    ) public virtual  returns(uint) {
+       
+        workers[workerCount] = Worker({
+            name: name,
+            paymentAddress: paymentAddress,
+            status: uint(WorkerStatus.IDLE),
+            metadataURI: metadataURI
+        });
+        workerCount++;
+        emit WorkerEnrolled(workerCount);
+        return workerCount;
     }
 
         /**
@@ -112,11 +139,10 @@ contract Maintainer {
      *
      * @param payee The address whose funds will be withdrawn and transferred to.
      */
-    function withdraw(address payable payee) public virtual onlyOwner {
-        uint256 payment = _deposits[payee];
-
-        _deposits[payee] = 0;
-
+    function withdraw(address payable payee) public returns(bool) {
+        require(workerTasks[payee].depositAmount > 0, "Invalid access");
+        uint payment = workerTasks[payee].depositAmount;
+        workerTasks[payee].depositAmount] = 0;
         payee.transfer(payment);
 
         emit Withdrawn(payee, payment);

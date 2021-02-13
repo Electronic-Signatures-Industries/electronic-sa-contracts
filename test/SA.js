@@ -173,7 +173,7 @@ contract('SA', accounts => {
           messageSelector,
           ethers.utils.defaultAbiCoder.encode(['string', 'string'], [
             "Industrias de Firmas Electronicas",
-            "https  ://ifesa.ipfs.pa/",
+            "https://ifesa.ipfs.pa/",
           ])
         );
         console.log(response.logs[1].args.id);

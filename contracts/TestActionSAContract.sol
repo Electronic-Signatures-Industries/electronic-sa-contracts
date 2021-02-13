@@ -3,10 +3,14 @@ pragma experimental ABIEncoderV2;
 
 import "./MinLibBytes.sol";
 import "./MessageRoute.sol";
-import "./Whitelist.sol";
-contract TestActionSAContract is Maintainer, MessageRoute {
+
+
+import "./Maintainer.sol";
+
+contract TestActionSAContract is StateRelayer {
 
  
+    Maintainer private maintainer;
     struct SociedadAnonima {
         // Company Name
         string name;
@@ -70,7 +74,8 @@ contract TestActionSAContract is Maintainer, MessageRoute {
     uint public counter;
     mapping(uint => SociedadAnonima) public companies;
 
-    constructor(address _owner) {
+    constructor(address _owner, address _maintainer) {
+        maintainer = _maintainer;
         owner = _owner;
     }
     /* Async Message Flow Functions */
@@ -178,6 +183,7 @@ contract TestActionSAContract is Maintainer, MessageRoute {
         bytes memory params
     ) public returns(uint) {
         (string memory name,
+        address agent,
          string memory metadataURI) =
         abi.decode(
             params,
@@ -190,17 +196,20 @@ contract TestActionSAContract is Maintainer, MessageRoute {
             verifiedName: false,
             verifiedRuc: false,
             status: uint(WorkflowState.SearchName),
-            legalResidentAgent: address(0),
+            legalResidentAgent: agent,
             legalResidentAgentDID: "",
             metadataURI: metadataURI,
             memberCount: 0
         });
         counter++;
 
-        emit ActionChanged(
-            getMethodSig(msg.data), 
-            params
+        uint jobCounter = relayJob.addJob(abi.encodePacked(counter), selector);
+        
+        emit MessageRelayed(
+            jobCounter
         );
+
+
         emit CompanyAdded(
             name,
             counter
@@ -347,5 +356,27 @@ contract TestActionSAContract is Maintainer, MessageRoute {
 
         return true;
     }
+
+//    function setMaintainer(
+//         address caller,
+//         bytes memory params
+//     ) public  returns(bool) {
+//         (uint id) =
+//         abi.decode(
+//             params,
+//             (uint) 
+//         );
+
+//         require(companies[id].status == uint(WorkflowState.NotaryStamped), "Invalid state");
+
+//         companies[id].status = uint(WorkflowState.Registered);
+
+//         emit ActionChanged(
+//             getMethodSig(msg.data), 
+//             params
+//         );
+
+//         return true;
+//     }
 
 }
