@@ -23,10 +23,10 @@ contract TestActionSAContract is MessageRoute, Utils {
         string legalResidentAgentDID;
         // RUC
         string ruc;
-        uint status;
+        uint256 status;
         // Has been verified
         bool verifiedRuc;
-        uint memberCount;
+        uint256 memberCount;
     }
 
     struct Member {
@@ -34,48 +34,38 @@ contract TestActionSAContract is MessageRoute, Utils {
         address member;
     }
 
-    mapping (uint => mapping(uint => Member)) public members;
+    mapping(uint256 => mapping(uint256 => Member)) public members;
 
     enum WorkflowState {
         SearchName,
         RequestKYC,
         AddMembers,
         KYCCompleted,
-        RegisterCompany, // Name, Members, Capital, 
+        RegisterCompany, // Name, Members, Capital,
         NotaryStamped,
         Registered,
         OperationsRequested,
         OperationsNoticeCompleted
     }
 
-    event RequestBoardMembersKYC(
-        uint indexed id
-    );
+    event RequestBoardMembersKYC(uint256 indexed id);
 
-    event CompanyAdded(
-        string name,
-        uint indexed id
-    );
+    event CompanyAdded(string name, uint256 indexed id);
 
     event MemberAdded(
         string memberDID,
         address member,
-        uint companyId,
-        uint indexed id
+        uint256 companyId,
+        uint256 indexed id
     );
 
-    event CompanyRegistered(
-        string name,
-        string ruc,
-        uint indexed  id
-    );
+    event CompanyRegistered(string name, string ruc, uint256 indexed id);
 
-
-    uint public counter;
-    mapping(uint => SociedadAnonima) public companies;
+    uint256 public counter;
+    mapping(uint256 => SociedadAnonima) public companies;
 
     constructor(
-        address _owner, 
+        address _owner,
         address _maintainer,
         address _stateRelayer
     ) {
@@ -83,134 +73,116 @@ contract TestActionSAContract is MessageRoute, Utils {
         owner = _owner;
         stateRelayer = StateRelayer(_stateRelayer);
     }
+
     /* Async Message Flow Functions */
 
     /* Property Getters and Setters */
     // Has Valid Name verifies company name has been completed
-    function hasValidName(
-        address caller,
-        bytes calldata params
-    ) 
-    external  returns(bool) {
-        uint id = abi.decode(params, (uint));
+    function hasValidName(address caller, bytes calldata params)
+        external
+        returns (bool)
+    {
+        uint256 id = abi.decode(params, (uint256));
         return companies[id].verifiedName;
     }
 
-
     // Sets a valid name
-    function setValidName(
-        uint id,
-        bool ok
-    ) 
-    public
-    propertyChange("verifiedName", abi.encodePacked(ok))
-     returns(bool) {
+    function setValidName(uint256 id, bool ok)
+        public
+        propertyChange("verifiedName", abi.encodePacked(ok))
+        returns (bool)
+    {
         require(companies[id].verifiedName == false, "Name already verified");
         companies[id].verifiedName = ok;
         return true;
     }
 
-
-    function setRUC(
-        uint id,
-        string memory ruc
-    ) 
-    public
-    propertyChange("ruc", abi.encodePacked(ruc))
-    returns(bool) {
+    function setRUC(uint256 id, string memory ruc)
+        public
+        propertyChange("ruc", abi.encodePacked(ruc))
+        returns (bool)
+    {
         require(companies[id].verifiedRuc == false, "RUC already verified");
         companies[id].ruc = ruc;
         companies[id].verifiedRuc = true;
         return true;
     }
 
-    function hasRUC(
-        address caller,
-        bytes calldata params
-    ) 
-    external  returns(bool) {
-        uint id = abi.decode(params, (uint));
+    function hasRUC(address caller, bytes calldata params)
+        external
+        returns (bool)
+    {
+        uint256 id = abi.decode(params, (uint256));
         return companies[id].verifiedRuc;
     }
 
-    function hasMemberKYCCompleted(
-        address caller,
-        bytes calldata params
-    ) 
-    external  returns(bool) {
-        uint id = abi.decode(params, (uint));
-        return companies[id].status == uint(WorkflowState.KYCCompleted);
+    function hasMemberKYCCompleted(address caller, bytes calldata params)
+        external
+        returns (bool)
+    {
+        uint256 id = abi.decode(params, (uint256));
+        return companies[id].status == uint256(WorkflowState.KYCCompleted);
     }
 
-    function hasRegistered(
-        address caller,
-        bytes calldata params
-    ) 
-    external  returns(bool) {
-        uint id = abi.decode(params, (uint));
-        return companies[id].status == uint(WorkflowState.Registered);
+    function hasRegistered(address caller, bytes calldata params)
+        external
+        returns (bool)
+    {
+        uint256 id = abi.decode(params, (uint256));
+        return companies[id].status == uint256(WorkflowState.Registered);
     }
 
-
-    function hasNotarized(
-        address caller,
-        bytes calldata params
-    ) 
-    external  returns(bool) {
-        uint id = abi.decode(params, (uint));
-        return companies[id].status == uint(WorkflowState.NotaryStamped);
+    function hasNotarized(address caller, bytes calldata params)
+        external
+        returns (bool)
+    {
+        uint256 id = abi.decode(params, (uint256));
+        return companies[id].status == uint256(WorkflowState.NotaryStamped);
     }
 
-    function setStatus(
-        uint id,
-        uint status
-    ) 
-    public
-    propertyChange("status", abi.encodePacked(status))
-    returns(bool) {
+    function setStatus(uint256 id, uint256 status)
+        public
+        propertyChange("status", abi.encodePacked(status))
+        returns (bool)
+    {
         companies[id].status = status;
         bytes memory params = abi.encodePacked(status);
         return true;
     }
 
-    function hasStatus(
-        address caller,
-        bytes calldata params
-    ) 
-    external  returns(bool) {
-        uint id = abi.decode(params, (uint));
+    function hasStatus(address caller, bytes calldata params)
+        external
+        returns (bool)
+    {
+        uint256 id = abi.decode(params, (uint256));
         return companies[id].status == id;
     }
 
-    function getDomain() 
-    public pure returns(bytes32) {
-        return this.getDomainSeparator(
-            getDomain(),
-            "TestActionSAContract",
-            address(this),
-            10,
-            "1"
+    function getDomain() public view returns (bytes32) {
+       
+        return
+            stateRelayer.getDomainSeparator(
+                "TestActionSAContract",
+                address(this),
+                10,
+                "1"
             );
     }
 
     // Create SA
-    function propose(string memory name,
+    function propose(
+        string memory name,
         address agent,
-         string memory metadataURI
-    ) public
-    returns(uint) {
-
-        stateRelayer.validateState(
-            getDomain(),
-            getMethodSig(msg.data)
-        );
+        string memory metadataURI
+    ) public returns (uint256) {
+        stateRelayer.validateState(getDomain(), getMethodSig(msg.data));
 
         companies[counter] = SociedadAnonima({
             name: name,
             ruc: "",
-            verifiedName: false,
+                                                                                                            verifiedName: false,
             verifiedRuc: false,
-            status: uint(WorkflowState.SearchName),
+            status: uint256(WorkflowState.SearchName),
             legalResidentAgent: agent,
             legalResidentAgentDID: "",
             metadataURI: metadataURI,
@@ -218,188 +190,145 @@ contract TestActionSAContract is MessageRoute, Utils {
         });
         counter++;
 
-        uint jobCounter = stateRelayer.addJob(
-            abi.encodePacked(counter), 
-            getMethodSig(msg.data)
-        );
-        
-        emit MessageRelayed(
-            jobCounter
-        );
+        uint256 jobCounter =
+            stateRelayer.addJob(
+                abi.encodePacked(counter),
+                getMethodSig(msg.data)
+            );
 
-        emit CompanyAdded(
-            name,
-            counter
-        );
+        emit MessageRelayed(jobCounter);
+
+        emit CompanyAdded(name, counter);
 
         return counter;
     }
 
-
     function addMemberKYC(
-        uint id,
+        uint256 id,
         address member,
-         string memory did
-    ) public
-      
-     returns(uint) {
-
-        stateRelayer.validateState(
-            getDomain(),
-            getMethodSig(msg.data)
+        string memory did
+    ) public returns (uint256) {
+        stateRelayer.validateState(getDomain(), getMethodSig(msg.data));
+        require(
+            companies[id].status == uint256(WorkflowState.RequestKYC),
+            "Invalid state"
         );
-        require(companies[id].status == uint(WorkflowState.RequestKYC), "Invalid state");
 
-        uint memberId = companies[id].memberCount;
-        members[id][memberId] = Member({
-            did: did,
-            member: member
-        });
+        uint256 memberId = companies[id].memberCount;
+        members[id][memberId] = Member({did: did, member: member});
 
         companies[id].memberCount = companies[id].memberCount + 1;
 
-        
-        uint jobCounter = stateRelayer.addJob(
-            abi.encodePacked(counter), 
-            getMethodSig(msg.data)
-        );
-        
-        emit MessageRelayed(
-            jobCounter
-        );
+        uint256 jobCounter =
+            stateRelayer.addJob(
+                abi.encodePacked(counter),
+                getMethodSig(msg.data)
+            );
 
-        emit MemberAdded(
-            did,
-            member,
-            id,
-            memberId
-        );
+        emit MessageRelayed(jobCounter);
+
+        emit MemberAdded(did, member, id, memberId);
 
         return memberId;
-
     }
 
     // Client must call setStatus once he enrolls 3 KYC Profiles
 
-
     // Register SA
     function register(
-        uint id,
+        uint256 id,
         string memory metadataURI,
         address legalResidentAgent,
         string memory legalResidentAgentDID
-   ) public  returns(bool) {
-       
-        stateRelayer.validateState(
-            getDomain(),
-            getMethodSig(msg.data)
+    ) public returns (bool) {
+        stateRelayer.validateState(getDomain(), getMethodSig(msg.data));
+
+        require(
+            companies[id].status == uint256(WorkflowState.AddMembers),
+            "Invalid state"
         );
-        
-        require(companies[id].status == uint(WorkflowState.AddMembers), "Invalid state");
 
         companies[id].legalResidentAgent = legalResidentAgent;
         companies[id].legalResidentAgentDID = legalResidentAgentDID;
         companies[id].metadataURI = metadataURI;
-        companies[id].status = uint(WorkflowState.RegisterCompany);
+        companies[id].status = uint256(WorkflowState.RegisterCompany);
 
+        uint256 jobCounter =
+            stateRelayer.addJob(
+                abi.encodePacked(counter),
+                getMethodSig(msg.data)
+            );
 
-        uint jobCounter = stateRelayer.addJob(
-            abi.encodePacked(counter), 
-            getMethodSig(msg.data)
-        );
-        
-        emit MessageRelayed(
-            jobCounter
-        );
-
+        emit MessageRelayed(jobCounter);
 
         return true;
     }
 
-    function notaryStamp(
-        uint id
-    ) public  returns(bool) {
-        
-        stateRelayer.validateState(
-            getDomain(),
-            getMethodSig(msg.data)
+    function notaryStamp(uint256 id) public returns (bool) {
+        stateRelayer.validateState(getDomain(), getMethodSig(msg.data));
+
+        require(
+            companies[id].status == uint256(WorkflowState.RegisterCompany),
+            "Invalid state"
         );
 
-        require(companies[id].status == uint(WorkflowState.RegisterCompany), "Invalid state");
+        companies[id].status = uint256(WorkflowState.NotaryStamped);
 
-        companies[id].status = uint(WorkflowState.NotaryStamped);
+        uint256 jobCounter =
+            stateRelayer.addJob(
+                abi.encodePacked(counter),
+                getMethodSig(msg.data)
+            );
 
-        uint jobCounter = stateRelayer.addJob(
-            abi.encodePacked(counter), 
-            getMethodSig(msg.data)
-        );
-        
-        emit MessageRelayed(
-            jobCounter
-        );
+        emit MessageRelayed(jobCounter);
 
         return true;
     }
 
+    function requestKYC(uint256 id) public returns (bool) {
+        stateRelayer.validateState(getDomain(), getMethodSig(msg.data));
 
-    function requestKYC(
-        uint id
-    ) public  returns(bool) {
-
-
-        stateRelayer.validateState(
-            getDomain(),
-            getMethodSig(msg.data)
-        );
-
-        companies[id].status = uint(WorkflowState.RequestKYC);
+        companies[id].status = uint256(WorkflowState.RequestKYC);
 
         emit RequestBoardMembersKYC(id);
 
         return true;
     }
 
-    function completeCompanyRegistration(
-        uint id
-    ) public  returns(bool) {
-   
-        stateRelayer.validateState(
-            getDomain(),
-            getMethodSig(msg.data)
+    function completeCompanyRegistration(uint256 id) public returns (bool) {
+        stateRelayer.validateState(getDomain(), getMethodSig(msg.data));
+
+        require(
+            companies[id].status == uint256(WorkflowState.NotaryStamped),
+            "Invalid state"
         );
 
+        companies[id].status = uint256(WorkflowState.Registered);
 
-        require(companies[id].status == uint(WorkflowState.NotaryStamped), "Invalid state");
-
-        companies[id].status = uint(WorkflowState.Registered);
-
-        emit ActionChanged(
-            getMethodSig(msg.data)
-        );
+        emit ActionChanged(getMethodSig(msg.data));
 
         return true;
     }
 
-//    function setMaintainer(
-//         address caller,
-//         bytes memory params
-//     ) public  returns(bool) {
-//         (uint id) =
-//         abi.decode(
-//             params,
-//             (uint) 
-//         );
+    //    function setMaintainer(
+    //         address caller,
+    //         bytes memory params
+    //     ) public  returns(bool) {
+    //         (uint id) =
+    //         abi.decode(
+    //             params,
+    //             (uint)
+    //         );
 
-//         require(companies[id].status == uint(WorkflowState.NotaryStamped), "Invalid state");
+    //         require(companies[id].status == uint(WorkflowState.NotaryStamped), "Invalid state");
 
-//         companies[id].status = uint(WorkflowState.Registered);
+    //         companies[id].status = uint(WorkflowState.Registered);
 
-//         emit ActionChanged(
-//             getMethodSig(msg.data), 
-//             params
-//         );
+    //         emit ActionChanged(
+    //             getMethodSig(msg.data),
+    //             params
+    //         );
 
-//         return true;
-//     }
-
+    //         return true;
+    //     }
 }

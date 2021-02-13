@@ -22,8 +22,6 @@ contract MessageRoute {
 
 
     event MessageRelayed(
-        bytes request,
-        bytes response,
         uint id
     );
 

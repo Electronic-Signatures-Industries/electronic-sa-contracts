@@ -32,11 +32,10 @@ contract StateRelayer  is MessageRoute {
     }
 
     function addJob(
-        bytes memory params,
         bytes memory ret,
         bytes4 selector
     )   public returns(uint) {
-        return relayJob.addJob(params, ret, selector);
+        return relayJob.addJob(ret, selector);
     } 
 
     function revertWithData(bytes memory data) internal pure {

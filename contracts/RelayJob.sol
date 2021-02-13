@@ -6,7 +6,6 @@ contract RelayJob {
     struct MessageRequest {
         uint status;
         uint id;
-        bytes request;
         bytes response;
         bytes4 selector;
     }
@@ -15,7 +14,6 @@ contract RelayJob {
     mapping (uint => MessageRequest) public jobs;
 
     function addJob(
-        bytes memory params,
         bytes memory ret,
         bytes4 selector
     ) 
@@ -24,7 +22,6 @@ contract RelayJob {
         jobs[jobCounter] = MessageRequest({
             status: 0,
             id: jobCounter,
-            request: params,
             response: ret,
             selector: selector
         });
