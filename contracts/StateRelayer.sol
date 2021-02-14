@@ -95,7 +95,7 @@ contract StateRelayer  is MessageRoute {
         }
 
         if (conditionsCompleted == true) {
-            relayJob.get(jobId).status =1;
+            relayJob.get(jobId).status = 2;
             emit MessageRequestCompleted(
                 item.controller,
                 item.selector,

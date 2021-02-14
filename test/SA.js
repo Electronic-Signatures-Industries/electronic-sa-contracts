@@ -48,7 +48,7 @@ contract('SA', accounts => {
           '1'
         );
         const controller = testDemoContract.address;
-        let messageSelector = web3.eth.abi.encodeFunctionSignature(`propose(address,bytes)`);
+        let messageSelector = web3.eth.abi.encodeFunctionSignature(`propose(string,address,string,string)`);
         let conditions = [
           web3.eth.abi.encodeFunctionSignature(`hasValidName(address,bytes)`),
         ];
@@ -66,7 +66,7 @@ contract('SA', accounts => {
 
         assert.equal(res.logs[0].args.controller, controller);
 
-        messageSelector = web3.eth.abi.encodeFunctionSignature(`requestKYC(address,bytes)`);
+        messageSelector = web3.eth.abi.encodeFunctionSignature(`requestKYC(uint,uint,string)`);
         conditions = [];
         conditionStatus = [];
         whitelist = [accounts[0], accounts[1], accounts[2]];
@@ -82,7 +82,7 @@ contract('SA', accounts => {
 
         assert.equal(res.logs[0].args.controller, controller);
 
-        messageSelector = web3.eth.abi.encodeFunctionSignature(`addMemberKYC(address,bytes)`);
+        messageSelector = web3.eth.abi.encodeFunctionSignature(`addMemberKYC(uint,uint,string,address,address)`);
         conditions = [
           web3.eth.abi.encodeFunctionSignature(`hasMemberKYCCompleted(address,bytes)`),
         ];
@@ -101,7 +101,7 @@ contract('SA', accounts => {
         assert.equal(res.logs[0].args.controller, controller);
 
 
-        messageSelector = web3.eth.abi.encodeFunctionSignature(`register(address,bytes)`);
+        messageSelector = web3.eth.abi.encodeFunctionSignature(`register(uint,uint,string,string,address,string)`);
         conditions = [
           web3.eth.abi.encodeFunctionSignature(`hasRegistered(address,bytes)`),
         ];
@@ -120,7 +120,7 @@ contract('SA', accounts => {
         assert.equal(res.logs[0].args.controller, controller);
 
 
-        messageSelector = web3.eth.abi.encodeFunctionSignature(`notaryStamp(address,bytes)`);
+        messageSelector = web3.eth.abi.encodeFunctionSignature(`notaryStamp(uint,uint,string)`);
         conditions = [
           web3.eth.abi.encodeFunctionSignature(`hasNotarized(address,bytes)`),
         ];
@@ -167,7 +167,7 @@ contract('SA', accounts => {
           '1'
         );
 
-        // Propose
+        // ofertante: Propose,  pay and create assignment
         let response = await relayer.executeAction(
           domain,
           messageSelector,
@@ -176,8 +176,12 @@ contract('SA', accounts => {
             "https://ifesa.ipfs.pa/",
           ])
         );
+
+        // maintainer: apply to
+        // ofertante: review applications
+        // ofertante: grant assignment  and whitelist
         console.log(response.logs[1].args.id);
-        // Set name has been verified offchain
+        // mantainer: Set name has been verified offchain
         response = await testDemoContract.setValidName(
           response.logs[1].args.id,
           true,{
@@ -187,7 +191,7 @@ contract('SA', accounts => {
 
         reqResId = response.logs[1].args.id;
         
-        // execute conditions
+        // bot: execute conditions
         response = await relayer.executeActionConditions(
           domain,
           messageSelector,
@@ -195,7 +199,11 @@ contract('SA', accounts => {
         );
 
         console.log(response.logs);
-   
+
+        // ofertante: listen for MessageRequestCompleted
+        // ofertante: execute next
+        
+        
         // const nftAddress = res.logs[0].args.minterAddress;
         // const minter = await DocumentMinter.at(nftAddress);
         // assert.equal(await minter.symbol(), "NOT9APOST");

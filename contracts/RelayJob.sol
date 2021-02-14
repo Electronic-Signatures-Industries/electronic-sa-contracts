@@ -23,6 +23,7 @@ contract RelayJob {
         string metadataURI;
         bytes response;
         bytes4 selector;
+        address agent;
     }
     address public owner;
 
@@ -47,7 +48,8 @@ contract RelayJob {
             id: jobCounter,
             metadataURI: metadataURI,
             response: ret,
-            selector: selector
+            selector: selector,
+            agent: address(0)
         });
 
         emit JobMessageRelayed(jobCounter);
