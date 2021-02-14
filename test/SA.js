@@ -56,7 +56,7 @@ contract('SA', accounts => {
         let whitelist = [];
         // Create controller mapping for messages
         let res = await registry.mapAction(
-          domain,
+          
           controller,
           messageSelector,
           conditions,
@@ -72,7 +72,7 @@ contract('SA', accounts => {
         whitelist = [accounts[0], accounts[1], accounts[2]];
         // Create controller mapping for messages
         res = await registry.mapAction(
-          domain,
+          
           controller,
           messageSelector,
           conditions,
@@ -90,7 +90,7 @@ contract('SA', accounts => {
         whitelist = [accounts[0], accounts[1], accounts[2]];
         // Create controller mapping for messages
         res = await registry.mapAction(
-          domain,
+          
           controller,
           messageSelector,
           conditions,
@@ -109,7 +109,7 @@ contract('SA', accounts => {
         whitelist = [accounts[0], accounts[1], accounts[2]];
         // Create controller mapping for messages
         res = await registry.mapAction(
-          domain,
+          
           controller,
           messageSelector,
           conditions,
@@ -128,7 +128,7 @@ contract('SA', accounts => {
         whitelist = [accounts[0], accounts[1], accounts[2]];
         // Create controller mapping for messages
         res = await registry.mapAction(
-          domain,
+          
           controller,
           messageSelector,
           conditions,

@@ -50,7 +50,12 @@ contract TestActionSAContract is MessageRoute, Utils {
 
     event RequestBoardMembersKYC(uint256 indexed id);
 
-    event CompanyAdded(string name, uint256 indexed id);
+    event CompanyAdded(
+        string name,
+        uint256 indexed id,
+        uint256 jobId,
+        uint256 escrowedAssignmentId
+    );
 
     event MemberAdded(
         string memberDID,
@@ -63,6 +68,8 @@ contract TestActionSAContract is MessageRoute, Utils {
 
     uint256 public counter;
     mapping(uint256 => SociedadAnonima) public companies;
+    mapping(uint256 => uint) public companyJobs;
+    
 
     constructor(
         address _owner,
@@ -116,30 +123,6 @@ contract TestActionSAContract is MessageRoute, Utils {
         return companies[id].verifiedRuc;
     }
 
-    function hasMemberKYCCompleted(address caller, bytes calldata params)
-        external
-        returns (bool)
-    {
-        uint256 id = abi.decode(params, (uint256));
-        return companies[id].status == uint256(WorkflowState.KYCCompleted);
-    }
-
-    function hasRegistered(address caller, bytes calldata params)
-        external
-        returns (bool)
-    {
-        uint256 id = abi.decode(params, (uint256));
-        return companies[id].status == uint256(WorkflowState.Registered);
-    }
-
-    function hasNotarized(address caller, bytes calldata params)
-        external
-        returns (bool)
-    {
-        uint256 id = abi.decode(params, (uint256));
-        return companies[id].status == uint256(WorkflowState.NotaryStamped);
-    }
-
     function setStatus(uint256 id, uint256 status)
         public
         propertyChange("status", abi.encodePacked(status))
@@ -154,12 +137,11 @@ contract TestActionSAContract is MessageRoute, Utils {
         external
         returns (bool)
     {
-        uint256 id = abi.decode(params, (uint256));
-        return companies[id].status == id;
+        (uint256 id, uint status) = abi.decode(params, (uint256, uint));
+        return companies[id].status == status;
     }
 
     function getDomain() public view returns (bytes32) {
-       
         return
             stateRelayer.getDomainSeparator(
                 "TestActionSAContract",
@@ -173,14 +155,15 @@ contract TestActionSAContract is MessageRoute, Utils {
     function propose(
         string memory name,
         address agent,
+        string memory jobMetadataURI,
         string memory metadataURI
     ) public returns (uint256) {
-        stateRelayer.validateState(getDomain(), getMethodSig(msg.data));
+        stateRelayer.validateState(address(this), getMethodSig(msg.data));
 
         companies[counter] = SociedadAnonima({
             name: name,
             ruc: "",
-                                                                                                            verifiedName: false,
+            verifiedName: false,
             verifiedRuc: false,
             status: uint256(WorkflowState.SearchName),
             legalResidentAgent: agent,
@@ -193,22 +176,24 @@ contract TestActionSAContract is MessageRoute, Utils {
         uint256 jobCounter =
             stateRelayer.addJob(
                 abi.encodePacked(counter),
-                getMethodSig(msg.data)
+                getMethodSig(msg.data),
+                jobMetadataURI
             );
 
-        emit MessageRelayed(jobCounter);
-
-        emit CompanyAdded(name, counter);
+        uint256 escrowid = maintainer.createAssignmentAndEscrow(jobCounter, msg.sender);
+        emit CompanyAdded(name, counter, jobCounter, escrowid);
 
         return counter;
     }
 
     function addMemberKYC(
         uint256 id,
+        uint256 jobId,
         address member,
-        string memory did
+        string memory did,
+        string memory jobMetadataURI
     ) public returns (uint256) {
-        stateRelayer.validateState(getDomain(), getMethodSig(msg.data));
+        stateRelayer.validateState(address(this), getMethodSig(msg.data));
         require(
             companies[id].status == uint256(WorkflowState.RequestKYC),
             "Invalid state"
@@ -219,13 +204,12 @@ contract TestActionSAContract is MessageRoute, Utils {
 
         companies[id].memberCount = companies[id].memberCount + 1;
 
-        uint256 jobCounter =
-            stateRelayer.addJob(
-                abi.encodePacked(counter),
-                getMethodSig(msg.data)
-            );
-
-        emit MessageRelayed(jobCounter);
+        stateRelayer.continueJob(
+            jobId,
+            abi.encodePacked(id, memberId),
+            getMethodSig(msg.data),
+            jobMetadataURI
+        );
 
         emit MemberAdded(did, member, id, memberId);
 
@@ -237,35 +221,38 @@ contract TestActionSAContract is MessageRoute, Utils {
     // Register SA
     function register(
         uint256 id,
+        uint256 jobId,
         string memory metadataURI,
+        string memory jobMetadataURI,
         address legalResidentAgent,
         string memory legalResidentAgentDID
     ) public returns (bool) {
-        stateRelayer.validateState(getDomain(), getMethodSig(msg.data));
+        stateRelayer.validateState(address(this), getMethodSig(msg.data));
 
         require(
             companies[id].status == uint256(WorkflowState.AddMembers),
             "Invalid state"
         );
 
+        require(companies[id].memberCount > 2);
+
         companies[id].legalResidentAgent = legalResidentAgent;
         companies[id].legalResidentAgentDID = legalResidentAgentDID;
         companies[id].metadataURI = metadataURI;
         companies[id].status = uint256(WorkflowState.RegisterCompany);
 
-        uint256 jobCounter =
-            stateRelayer.addJob(
-                abi.encodePacked(counter),
-                getMethodSig(msg.data)
-            );
-
-        emit MessageRelayed(jobCounter);
+        stateRelayer.continueJob(
+            jobId,
+            abi.encodePacked(id, legalResidentAgent, metadataURI),
+            getMethodSig(msg.data),
+            jobMetadataURI
+        );
 
         return true;
     }
 
-    function notaryStamp(uint256 id) public returns (bool) {
-        stateRelayer.validateState(getDomain(), getMethodSig(msg.data));
+    function notaryStamp(uint256 id, uint jobId, string memory jobMetadataURI) public returns (bool) {
+        stateRelayer.validateState(address(this), getMethodSig(msg.data));
 
         require(
             companies[id].status == uint256(WorkflowState.RegisterCompany),
@@ -274,29 +261,25 @@ contract TestActionSAContract is MessageRoute, Utils {
 
         companies[id].status = uint256(WorkflowState.NotaryStamped);
 
-        uint256 jobCounter =
-            stateRelayer.addJob(
-                abi.encodePacked(counter),
-                getMethodSig(msg.data)
-            );
-
-        emit MessageRelayed(jobCounter);
+        stateRelayer.continueJob(jobId, abi.encodePacked(id), getMethodSig(msg.data), jobMetadataURI);
 
         return true;
     }
 
-    function requestKYC(uint256 id) public returns (bool) {
-        stateRelayer.validateState(getDomain(), getMethodSig(msg.data));
+    function requestKYC(uint256 id, uint jobId, string memory jobMetadataURI) public returns (bool) {
+        stateRelayer.validateState(address(this), getMethodSig(msg.data));
 
         companies[id].status = uint256(WorkflowState.RequestKYC);
 
         emit RequestBoardMembersKYC(id);
 
+        stateRelayer.continueJob(jobId, abi.encodePacked(id), getMethodSig(msg.data), jobMetadataURI);
+
         return true;
     }
 
-    function completeCompanyRegistration(uint256 id) public returns (bool) {
-        stateRelayer.validateState(getDomain(), getMethodSig(msg.data));
+    function completeCompanyRegistration(uint256 id, uint jobId, string memory jobMetadataURI) public returns (bool) {
+        stateRelayer.validateState(address(this), getMethodSig(msg.data));
 
         require(
             companies[id].status == uint256(WorkflowState.NotaryStamped),
@@ -305,7 +288,7 @@ contract TestActionSAContract is MessageRoute, Utils {
 
         companies[id].status = uint256(WorkflowState.Registered);
 
-        emit ActionChanged(getMethodSig(msg.data));
+        stateRelayer.continueJob(jobId, abi.encodePacked(id), getMethodSig(msg.data), jobMetadataURI);
 
         return true;
     }

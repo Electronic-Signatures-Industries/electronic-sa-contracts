@@ -21,21 +21,31 @@ contract StateRelayer  is MessageRoute {
     }
 
     function validateState(
-        bytes32 domainSeparator,
+        address controller,
         bytes4 selector
     ) public returns(bool) {
 
         // check if it has been whitelisted and purchased
-        require(registry.getAction(domainSeparator, selector).controller != address(0), "Missing topic key");   
+        require(registry.getAction(controller, selector).controller != address(0), "Missing topic key");   
 
         return true;
     }
 
     function addJob(
         bytes memory ret,
-        bytes4 selector
+        bytes4 selector,
+        string memory   metadataURI
     )   public returns(uint) {
-        return relayJob.addJob(ret, selector);
+        return relayJob.addJob(ret, selector, metadataURI);
+    } 
+
+    function continueJob(
+        uint id,
+        bytes memory ret,
+        bytes4 selector,
+        string memory   metadataURI
+    )   public returns(bool) {
+        return relayJob.continueJob(id, ret, selector, metadataURI);
     } 
 
     function revertWithData(bytes memory data) internal pure {
@@ -47,17 +57,17 @@ contract StateRelayer  is MessageRoute {
     // Solo puede ser getter
     // El switch de MessageConditionFound, llama al siguiente paso
     function executeActionConditions(
-        bytes32 domainSeparator,
+        address controller,
         bytes4 selector,
         uint jobId
     ) public returns (bool) {
 
         // check if it has been whitelisted and purchased
-        require(registry.getAction(domainSeparator, selector).conditions.length > 0, "Missing action key");
+        require(registry.getAction(controller, selector).conditions.length > 0, "Missing action key");
         require(
             relayJob.hasInit(jobId), "Job already completed"
         );
-        ActionRoute memory item = registry.getAction(domainSeparator, selector);    
+        ActionRoute memory item = registry.getAction(controller, selector);    
         // check if it has been whitelisted and purchased
         require(item.controller != address(0), "Missing topic key");
 

@@ -5,6 +5,11 @@ contract MessageRoute {
 
     event PropertyChanged(string propName, bytes data);
     event ActionChanged(bytes4 methodSig);
+    event MessageRequestCompleted(
+        address controller,
+        bytes4 selector,
+        uint jobId
+    );
     
     struct ActionRoute {
         bytes4 selector;
@@ -17,19 +22,6 @@ contract MessageRoute {
         bytes(
             "EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"
         )
-    );
-
-
-
-    event MessageRelayed(
-        uint id
-    );
-
-
-    event MessageRequestCompleted(
-        address controller,
-        bytes4 selector,
-        uint id
     );
 
     modifier propertyChange(string memory field, bytes memory params) {

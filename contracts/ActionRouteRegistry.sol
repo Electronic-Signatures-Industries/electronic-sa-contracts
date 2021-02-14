@@ -6,35 +6,44 @@ import "./MessageRoute.sol";
 import "./Whitelist.sol";
 
 /**
- * Maintains workflow state machine flow
+ * @dev Registers and stores contracts decorated with mapAction
+ * Makes contract functions to have conditions that can be executed by bots
+ * Uses Whitelist and MessageRoute mixins
  */
 contract ActionRouteRegistry is Whitelist, MessageRoute {
+    // Stable coin
     ERC20Interface public stablecoin;
+
+    // Fee
     uint public fee;
-    mapping (bytes32 => mapping( bytes4 => ActionRoute)) public actions;
-    mapping (address => uint) public accounting;
+
+    // Registered actions
+    mapping (address => mapping( bytes4 => ActionRoute)) public actions;
     
+    // Accounting
+    mapping (address => uint) public accounting;
 
+    // Events
     event Withdrawn(address indexed payee, uint256 weiAmount);
-
     
     event MessageEntryAdded(
-        bytes32 domainSeparator,
         address from,
         address controller,
         bytes32 id
     );
 
+    /* Reads an action
+    */
     function getAction(
-        bytes32 domainSeparator,
+        address controller,
         bytes4 selector
     ) public view returns(ActionRoute memory) {
-        return actions[domainSeparator][selector];
+        return actions[controller][selector];
     }
 
 
     /**
-    * XDV Data Token
+    * constructor
     */
     constructor(
         address tokenAddress
@@ -43,15 +52,18 @@ contract ActionRouteRegistry is Whitelist, MessageRoute {
         stablecoin  = ERC20Interface(tokenAddress);
     }
    
-    function setProtocolConfig(uint256 _fee) public {
+    // Sets protocol fee
+    function setProtocolFee(uint256 _fee) public {
         require(msg.sender == owner, "INVALID_USER");
         fee = _fee;
     }
 
-    function getProtocolConfig() public returns (uint256) {
+    // Gets protocol fee
+    function getProtocolFee() public returns (uint256) {
         return (fee);
     }
 
+    // Withdraw funds
     function withdraw(address payable payee) public {
         require(msg.sender == owner, "INVALID_USER");
         uint256 b = address(this).balance;
@@ -60,6 +72,7 @@ contract ActionRouteRegistry is Whitelist, MessageRoute {
         emit Withdrawn(payee, b);
     }
 
+    // Withdraw ERC-20
     function withdrawToken(address payable payee, address token) public {
         require(msg.sender == owner, "INVALID_USER");
         uint256 b = ERC20Interface(token).balanceOf(address(this));
@@ -68,12 +81,9 @@ contract ActionRouteRegistry is Whitelist, MessageRoute {
         emit Withdrawn(payee, b);
     }
 
-    // topic ABI Function Ethers
-    // ExecutePrescription(uint, uint, string) === bytes32
-    // 0xA1...
 
+    //  Maps an action that can be query for conditions
     function mapAction(
-        bytes32 domainSeparator,
         address controller,
         bytes4 messageRequest,
         bytes4[] memory conditions,
@@ -116,10 +126,10 @@ contract ActionRouteRegistry is Whitelist, MessageRoute {
             "MUST SEND FEE BEFORE USE");
         */
 
-        require(actions[domainSeparator][messageRequest].controller == address(0), "Address already exists");
+        require(actions[controller][messageRequest].controller == address(0), "Address already exists");
 
         // register topic and mutation
-        actions[domainSeparator][messageRequest] = ActionRoute({
+        actions[controller][messageRequest] = ActionRoute({
             selector: messageRequest,
             controller: controller,
             conditions: conditions,
@@ -142,13 +152,12 @@ contract ActionRouteRegistry is Whitelist, MessageRoute {
                 fee),
             "Transfer failed for fee"
         );
-        actionWhitelisting[domainSeparator][messageRequest] = true;
+        actionWhitelisting[controller][messageRequest] = true;
 
 
         accounting[msg.sender] = accounting[msg.sender] + fee;
         accounting[address(this)] = accounting[address(this)] + fee;
         emit MessageEntryAdded(
-            domainSeparator,
             msg.sender,
             controller,
             messageRequest

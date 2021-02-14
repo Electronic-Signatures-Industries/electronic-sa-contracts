@@ -13,7 +13,7 @@ contract Whitelist is Utils {
         bool enable
     );
 
-    mapping (bytes32 => mapping( bytes4 => bool)) public actionWhitelisting;
+    mapping (address => mapping( bytes4 => bool)) public actionWhitelisting;
 
     mapping(address => mapping(bytes4 => bool)) public userWhitelist; 
 

@@ -4,6 +4,9 @@ const TestActionSAContract = artifacts.require('TestActionSAContract');
 const DAI = artifacts.require('DAI');
 const ActionRouteRegistry = artifacts.require('ActionRouteRegistry');
 const StateRelayer = artifacts.require('StateRelayer');
+const Maintainer = artifacts.require('Maintainer');
+const RelayJob = artifacts.require('RelayJob');
+
 
 const ContractImportBuilder = require('../contract-import-builder');
 
@@ -18,7 +21,7 @@ module.exports = async (deployer, network, accounts) => {
   let dai;
   let daiaddress = ""
   // if (network === "rinkeby") {
-  daiaddress = "0xec5dcb5dbf4b114c9d0f65bccab49ec54f6a0867"
+  // daiaddress = "0xec5dcb5dbf4b114c9d0f65bccab49ec54f6a0867"
   // }
   // else {
 
@@ -26,20 +29,49 @@ module.exports = async (deployer, network, accounts) => {
   dai = await DAI.deployed();
   //   daiaddress = dai.address
   // }
+
+  // ActionRouteRegistry(erc20Token)
   await deployer.deploy(ActionRouteRegistry, dai.address);
   const registry = await ActionRouteRegistry.deployed();
-  await registry.setProtocolConfig(new BigNumber(2 * 1e18));
-  await deployer.deploy(StateRelayer, registry.address);
-  const relayer = await StateRelayer.deployed();
-
-  await deployer.deploy(TestActionSAContract, accounts[0]);
-  const demo = await TestActionSAContract.deployed();
   
- // await manager.setProtocolFee(new BigNumber(5 * 1e18));
+  // RelayJob()
+  await deployer.deploy(RelayJob);
+  const relayJob = await RelayJob.deployed();
+  
+  // StateRelayer(registry, relayJob)
+  await deployer.deploy(StateRelayer, registry.address, relayJob.address);
+  const stateRelayer = await StateRelayer.deployed();
+
+  // Maintainer(relayJob)
+  await deployer.deploy(Maintainer, relayJob.address);
+  const maintainer = await Maintainer.deployed();
+
+  // Smart Contract XDV Business Events contract implementation(maintainer, stateRelayer)
+  await deployer.deploy(TestActionSAContract, accounts[0], maintainer.address, stateRelayer.address);
+  const saMaker = await TestActionSAContract.deployed();
+
+  await registry.setProtocolFee(new BigNumber(2 * 1e18));
+  
   builder.addContract(
     'DAI',
     dai,
     daiaddress,
+    network
+  );
+
+
+  builder.addContract(
+    'RelayJob',
+    relayJob,
+    relayJob.address,
+    network
+  );
+
+
+  builder.addContract(
+    'Maintainer',
+    maintainer,
+    maintainer.address,
     network
   );
 
@@ -56,10 +88,11 @@ module.exports = async (deployer, network, accounts) => {
     StateRelayer.address,
     network
   );
+
   builder.addContract(
     'TestActionSAContract',
-    demo,
-    demo.address,
+    saMaker,
+    saMaker.address,
   )
 
 

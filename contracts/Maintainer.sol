@@ -7,27 +7,26 @@ import "./MessageRoute.sol";
 import "./Whitelist.sol";
 
 contract Maintainer {
-
     address public owner;
     RelayJob public relayJob;
- 
-    event Created(uint id);
-    event WorkerEnrolled(uint id);
+
+    event AssignmentBooked(uint256 id, address workerAddress);
+    event AssignmentGranted(uint256 id, address workerAddress, bool granted);
+    event AssignmentResolved(uint256 id, address workerAddress, bool resolved);
+    event AssignmentConfirmed(uint256 id, address workerAddress, bool granted);
+    event AssignmentPayout(uint256 id, address workerAddress, bool granted);
+    event Created(uint256 id);
+    event WorkerEnrolled(uint256 id);
     event Withdrawn(address indexed payee, uint256 weiAmount);
 
-    enum WorkerStatus {
-        IDLE,
-        BOOKED,
-        IN_PROGRESS,
-        OFF,
-        INACTIVE
-    }
-    
+    enum WorkerStatus {IDLE, APPLIED_TO, BOOKED, IN_PROGRESS, PENDING_PAYMENT, INACTIVE}
+
     struct Worker {
-       string name;
+        string name;
+        address owner;
         bool verified;
         string metadataURI;
-        uint status;
+        uint256 status;
         address accountsPayable;
     }
 
@@ -37,97 +36,246 @@ contract Maintainer {
         IN_PROGRESS,
         REJECTED,
         RESOLVED,
+        PAYOUT,
         CANCELLED
     }
 
     struct Assignment {
-        string name;
-        uint relayJobId;
-        uint status;
-        uint depositAmount;
+        address owner;
+        uint256 relayJobId;
+        uint256 status;
+        uint256 depositAmount;
     }
 
-    // Wor995ker count
-
-
-    uint public workerCount;
+    // Worker count
+    uint256 private workerCount;
 
     // Assignment count
-
-    uint public assignmentCount;
+    uint256 private assignmentCount;
 
     // Worker accounting
 
-    mapping (address => uint) public workerAccounting;
+    mapping(address => uint256) private workerAccounting;
 
     // Total worker accounting
 
-    uint public totalWorkerAccounting;
+    uint256 private totalWorkerAccounting;
 
     // Assingment accounting
 
-    mapping (uint => uint) public assignmentAccounting;
+    mapping(uint256 => uint256) private assignmentAccounting;
 
     // Total assignment accounting
 
-    uint public totalAssignmentAccounting;
+    uint256 private totalAssignmentAccounting;
 
     // Assignments
-    mapping (uint => Assignment) public assignments;
+    mapping(uint256 => Assignment) public assignments;
 
     // Workers
-    mapping (address => Worker) public workers;
+    mapping(address => Worker) public workers;
 
     // Worker assign to a task
-    mapping (address => Assignment) public workerTasks;
+    mapping(address => uint256) public workerTasks;
 
     constructor(address _relayJob) public {
         relayJob = RelayJob(_relayJob);
         owner = msg.sender;
     }
 
-
     /**
      * @dev Stores the sent amount as credit to be withdrawn.
      * @param relayJobId The job id.
      */
-    function createAssignmentAndEscrow(
-        uint relayJobId,
-        string memory name
-    ) public payable virtual  returns(uint) {
-       require(relayJob.exists(relayJobId), "No job id found");
-       
+    function createAssignmentAndEscrow(uint256 relayJobId, address owner)
+        public
+        payable
+        virtual
+        returns (uint256)
+    {
         uint256 amount = msg.value;
-        assignments[assignmentCount] = Assignment({
-            name: name,
+        assignments[relayJobId] = Assignment({
             relayJobId: relayJobId,
-            status: uint(AssignmentStatus.INIT),
-            depositAmount: msg.value
+            status: uint256(AssignmentStatus.INIT),
+            depositAmount: msg.value,
+            owner: owner
         });
         assignmentCount++;
-        emit Created(assignmentCount);
-        return assignmentCount;
+        // todo: transfer
+        emit Created(relayJobId);
+        return relayJobId;
     }
 
+    /**
+     * @dev Enroll as worker
+     * @param name Worker name
+     * @param metadataURI VC or Document hash
+     * @param paymentAddress Payment addresss
+     */
     function enrollAsWorker(
         string memory name,
         string memory metadataURI,
         address paymentAddress
-    ) public virtual  returns(uint) {
-       
+    ) public virtual returns (uint256) {
+        require(paymentAddress != address(0), "Invalid payment address");
         workers[msg.sender] = Worker({
             name: name,
             accountsPayable: paymentAddress,
-            status: uint(WorkerStatus.IDLE),
+            status: uint256(WorkerStatus.IDLE),
             metadataURI: metadataURI,
-            verified: false
+            verified: false,
+            owner: msg.sender
         });
         workerCount++;
         emit WorkerEnrolled(workerCount);
         return workerCount;
     }
 
-        /**
+
+    /**
+     * @dev set outcome for assignment
+     * @param assignmentId Assignment Id
+     * @param worker Worker address
+     */
+    function setOutcomeAssignment(
+        uint256 assignmentId,
+        address worker,
+        bool allow
+    ) public virtual returns (bool) {
+        // task owner can't be a worker
+        require(
+            assignments[assignmentId].owner != worker,
+            "Task owner cannot be assignment owner"
+        );
+
+        // is worker registered
+        require(
+            workers[worker].verified == true,
+            "Worker has not been verified"
+        );
+
+        // is assignment available
+        require(
+            assignments[assignmentId].status ==
+                uint256(AssignmentStatus.IN_PROGRESS),
+            "Assignment must be pending"
+        );
+
+        // is worker available
+        require(
+            workers[worker].status == uint256(WorkerStatus.BOOKED),
+            "Worker must has been applied"
+        );
+
+        // is worker not found in current tasks
+        require(workerTasks[worker] == assignmentId, "Assignment not found in tasks");
+
+        if (allow) {
+        workers[worker].status = uint256(AssignmentStatus.RESOLVED);
+        assignments[assignmentId].status = uint256(WorkerStatus.PENDING_PAYMENT);
+        emit AssignmentResolved(assignmentId, worker, true);
+        } else {
+        workers[worker].status = uint256(AssignmentStatus.REJECTED);
+        assignments[assignmentId].status = uint256(WorkerStatus.IDLE);
+        emit AssignmentResolved(assignmentId, worker, false);
+  
+        }
+        return true;
+    }
+
+    /**
+     * @dev grant assignment
+     * @param assignmentId Assignment Id
+     * @param worker Worker address
+     */
+    function grantAssignment(
+        uint256 assignmentId,
+        address worker,
+        bool allow
+    ) public virtual returns (bool) {
+        // task owner can't be a worker
+        require(
+            assignments[assignmentId].owner != worker,
+            "Task owner cannot be assignment owner"
+        );
+
+        // is worker registered
+        require(
+            workers[worker].verified == true,
+            "Worker has not been verified"
+        );
+
+        // is assignment available
+        require(
+            assignments[assignmentId].status ==
+                uint256(AssignmentStatus.PENDING),
+            "Assignment must be pending"
+        );
+
+        // is worker available
+        require(
+            workers[worker].status == uint256(WorkerStatus.APPLIED_TO),
+            "Worker must has been applied"
+        );
+
+        // is worker not found in current tasks
+        require(workerTasks[worker] == assignmentId, "Assignment not found in tasks");
+
+        if (allow) {
+        workers[worker].status = uint256(AssignmentStatus.IN_PROGRESS);
+        assignments[assignmentId].status = uint256(WorkerStatus.BOOKED);
+        emit AssignmentGranted(assignmentId, worker, true);
+        } else {
+        workers[worker].status = uint256(AssignmentStatus.CANCELED);
+        assignments[assignmentId].status = uint256(WorkerStatus.IDLE);
+        emit AssignmentGranted(assignmentId, worker, false);
+  
+        }
+        return true;
+    }
+
+    /**
+     * @dev apply for assignment
+     * @param assignmentId Assignment Id
+     * @param worker Worker address
+     */
+    function applyTo(uint256 assignmentId, address worker)
+        public
+        virtual
+        returns (bool)
+    {
+        // is worker registered
+        require(
+            workers[worker].verified == true,
+            "Worker has not been verified"
+        );
+
+        // is assignment available
+        require(
+            assignments[assignmentId].status == uint256(AssignmentStatus.INIT),
+            "Assignment already in progress"
+        );
+
+        // is worker available
+        require(
+            workers[worker].status == uint256(WorkerStatus.IDLE),
+            "Worker already booked or applying"
+        );
+
+        // is worker not found in current tasks
+        require(workerTasks[worker] == 0, "Assignment already booked");
+
+        // assign worker to task
+        workerTasks[worker] = assignmentId;
+
+        workers[worker].status = uint256(AssignmentStatus.PENDING);
+        assignments[assignmentId].status = uint256(WorkerStatus.APPLIED_TO);
+
+        emit AssignmentBooked(assignmentId, worker);
+        return true;
+    }
+
+    /**
      * @dev Withdraw accumulated balance for a payee, forwarding all gas to the
      * recipient.
      *
@@ -137,9 +285,9 @@ contract Maintainer {
      *
      * @param payee The address whose funds will be withdrawn and transferred to.
      */
-    function withdraw(address payable payee) public returns(bool) {
-        require(workerTasks[payee].depositAmount > 0, "Invalid access");
-        uint payment = workerTasks[payee].depositAmount;
+    function withdraw(address payable payee) public returns (bool) {
+        require(assignments[[workerTasks[payee]].depositAmount > 0, "Invalid access");
+        uint256 payment = workerTasks[payee].depositAmount;
         workerTasks[payee].depositAmount = 0;
         payee.transfer(payment);
 

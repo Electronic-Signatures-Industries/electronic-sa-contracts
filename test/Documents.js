@@ -41,14 +41,9 @@ contract('Async Request Response Message Gateway', accounts => {
           from: accounts[0]
         }
         );
-        const domain = await registry.getDomainSeparator(
-          'TestActionSAContract',
-          testDemoContract.address,
-          10,
-          '1'
-        );
+        const domain = await testDemoContract.getDomain();
         const controller = testDemoContract.address;
-        const messageSelector = web3.eth.abi.encodeFunctionSignature(`propose(address,bytes)`);
+        const messageSelector = web3.eth.abi.encodeFunctionSignature(`propose(string,address,string,string)`);
         const conditions = [
           web3.eth.abi.encodeFunctionSignature(`hasRUC(address,bytes)`),
           web3.eth.abi.encodeFunctionSignature(`hasValidName(address,bytes)`),
@@ -57,7 +52,6 @@ contract('Async Request Response Message Gateway', accounts => {
         const whitelist = [];
         // Create controller mapping for messages
         const res = await registry.mapAction(
-          domain,
           controller,
           messageSelector,
           conditions,
@@ -74,24 +68,14 @@ contract('Async Request Response Message Gateway', accounts => {
         assert.equal(registry !== null, true);
 
         const controller = testDemoContract.address;
-        const messageSelector = web3.eth.abi.encodeFunctionSignature(`propose(address,bytes)`);
-
-        // console.log(res.logs[0]);
-        const domain = await registry.getDomainSeparator(
-          'TestActionSAContract',
-          testDemoContract.address,
-          10,
-          '1'
-        );
-        const response = await relayer.executeAction(
-          domain,
-          messageSelector,
-          ethers.utils.defaultAbiCoder.encode(['string', 'string'], [
+        
+        const response = await testDemoContract.propose(
             "Industrias de Firmas Electronicas",
-            "https://ifesa.ipfs.pa/",
-          ])
+            accounts[2],
+            "https://ifesa.ipfs.pa/job_info",
+            "https://ifesa.ipfs.pa/company_info",
         );
-
+ 
         console.log(response.logs[0].args)
         reqResId = 1; // response.logs[0].args.id;
         // const nftAddress = res.logs[0].args.minterAddress;
@@ -104,7 +88,7 @@ contract('Async Request Response Message Gateway', accounts => {
         assert.equal(registry !== null, true);
 
         const controller = testDemoContract.address;
-        const messageSelector = web3.eth.abi.encodeFunctionSignature(`propose(address,bytes)`);
+        const messageSelector = web3.eth.abi.encodeFunctionSignature(`propose(string,address,string,string)`);
 
         // console.log(res.logs[0]);
         const domain = await registry.getDomainSeparator(
@@ -114,7 +98,7 @@ contract('Async Request Response Message Gateway', accounts => {
           '1'
         );
         const response = await relayer.executeActionConditions(
-          domain,
+          controller,
           messageSelector,
           new BigNumber(reqResId),
         );
