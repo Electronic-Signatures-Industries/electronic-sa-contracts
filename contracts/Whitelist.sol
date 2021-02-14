@@ -5,7 +5,7 @@ import "./Utils.sol";
 
 contract Whitelist is Utils {
 
-    address public owner;
+    address private owner;
 
     event UserWhitelistChanged(
         address caller,
@@ -17,11 +17,14 @@ contract Whitelist is Utils {
 
     mapping(address => mapping(bytes4 => bool)) public userWhitelist; 
 
-    modifier onlyWhitelisted {
-        require(userWhitelist[msg.sender][getMethodSig(msg.data)], "Invalid sender");
+    modifier onlyWhitelisted(address sender, bytes4 data) {
+        require(userWhitelist[sender][data] == true, "Invalid sender");
         _;
     }
 
+    constructor(address _owner)  {
+        owner = _owner;
+    }
     function setUserWhitelist(
         address caller,
         bytes4 fnName,

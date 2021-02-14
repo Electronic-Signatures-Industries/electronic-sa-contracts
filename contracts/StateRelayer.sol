@@ -20,16 +20,6 @@ contract StateRelayer  is MessageRoute {
         registry = ActionRouteRegistry(wfRegistry);
     }
 
-    function validateState(
-        address controller,
-        bytes4 selector
-    ) public returns(bool) {
-
-        // check if it has been whitelisted and purchased
-        require(registry.getAction(controller, selector).controller != address(0), "Missing topic key");   
-
-        return true;
-    }
 
     function addJob(
         bytes memory ret,

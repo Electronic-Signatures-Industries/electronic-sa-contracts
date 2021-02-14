@@ -7,10 +7,11 @@ import "./MessageRoute.sol";
 import "./Whitelist.sol";
 
 contract Maintainer {
-    address public owner;
+    address private owner;
     RelayJob public relayJob;
 
-    event AssignmentBooked(uint256 id, address workerAddress);
+    event UserVerified(address worker);
+    event AssignmentApplied(uint256 id, address workerAddress);
     event AssignmentGranted(uint256 id, address workerAddress, bool granted);
     event AssignmentResolved(uint256 id, address workerAddress, bool resolved);
     event AssignmentConfirmed(uint256 id, address workerAddress, bool granted);
@@ -112,7 +113,7 @@ contract Maintainer {
      * @param metadataURI VC or Document hash
      * @param paymentAddress Payment addresss
      */
-    function enrollAsWorker(
+    function enroll(
         string memory name,
         string memory metadataURI,
         address paymentAddress
@@ -183,6 +184,15 @@ contract Maintainer {
         return true;
     }
 
+    function setVerifyUser(
+        address worker
+    ) public returns(bool) {
+        require(owner == msg.sender, "Must be an admin");
+
+        workers[worker].verified = true;
+        emit UserVerified(worker);
+        return true;
+    }
     /**
      * @dev grant assignment
      * @param assignmentId Assignment Id
@@ -226,7 +236,7 @@ contract Maintainer {
         assignments[assignmentId].status = uint256(WorkerStatus.BOOKED);
         emit AssignmentGranted(assignmentId, worker, true);
         } else {
-        workers[worker].status = uint256(AssignmentStatus.CANCELED);
+        workers[worker].status = uint256(AssignmentStatus.REJECTED);
         assignments[assignmentId].status = uint256(WorkerStatus.IDLE);
         emit AssignmentGranted(assignmentId, worker, false);
   
@@ -271,7 +281,7 @@ contract Maintainer {
         workers[worker].status = uint256(AssignmentStatus.PENDING);
         assignments[assignmentId].status = uint256(WorkerStatus.APPLIED_TO);
 
-        emit AssignmentBooked(assignmentId, worker);
+        emit AssignmentApplied(assignmentId, worker);
         return true;
     }
 
@@ -286,11 +296,13 @@ contract Maintainer {
      * @param payee The address whose funds will be withdrawn and transferred to.
      */
     function withdraw(address payable payee) public returns (bool) {
-        require(assignments[[workerTasks[payee]].depositAmount > 0, "Invalid access");
-        uint256 payment = workerTasks[payee].depositAmount;
-        workerTasks[payee].depositAmount = 0;
+        require(assignments[workerTasks[payee]].depositAmount > 0, "Invalid access");
+        uint256 payment = assignments[workerTasks[payee]].depositAmount;
+        assignments[workerTasks[payee]].depositAmount = 0;
         payee.transfer(payment);
 
         emit Withdrawn(payee, payment);
+
+        return true;
     }
 }

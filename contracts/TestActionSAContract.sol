@@ -4,10 +4,10 @@ pragma experimental ABIEncoderV2;
 import "./MinLibBytes.sol";
 import "./MessageRoute.sol";
 import "./StateRelayer.sol";
-import "./Utils.sol";
+import "./Whitelist.sol";
 import "./Maintainer.sol";
 
-contract TestActionSAContract is MessageRoute, Utils {
+contract TestActionSAContract is MessageRoute, Whitelist {
     address public owner;
     Maintainer private maintainer;
     StateRelayer private stateRelayer;
@@ -75,7 +75,7 @@ contract TestActionSAContract is MessageRoute, Utils {
         address _owner,
         address _maintainer,
         address _stateRelayer
-    ) {
+    ) public Whitelist(_owner) {
         maintainer = Maintainer(_maintainer);
         owner = _owner;
         stateRelayer = StateRelayer(_stateRelayer);
@@ -86,7 +86,7 @@ contract TestActionSAContract is MessageRoute, Utils {
     /* Property Getters and Setters */
     // Has Valid Name verifies company name has been completed
     function hasValidName(address caller, bytes calldata params)
-        external
+        external 
         returns (bool)
     {
         uint256 id = abi.decode(params, (uint256));
@@ -94,8 +94,8 @@ contract TestActionSAContract is MessageRoute, Utils {
     }
 
     // Sets a valid name
-    function setValidName(uint256 id, bool ok)
-        public
+    function setValidName(uint256 id, bool ok, bytes4 fnName)
+        public onlyWhitelisted(msg.sender, fnName)
         propertyChange("verifiedName", abi.encodePacked(ok))
         returns (bool)
     {
@@ -105,7 +105,7 @@ contract TestActionSAContract is MessageRoute, Utils {
     }
 
     function setRUC(uint256 id, string memory ruc)
-        public
+        public onlyWhitelisted(msg.sender, getMethodSig(msg.data))
         propertyChange("ruc", abi.encodePacked(ruc))
         returns (bool)
     {
@@ -116,15 +116,40 @@ contract TestActionSAContract is MessageRoute, Utils {
     }
 
     function hasRUC(address caller, bytes calldata params)
-        external
+        external 
         returns (bool)
     {
         uint256 id = abi.decode(params, (uint256));
         return companies[id].verifiedRuc;
     }
 
-    function setStatus(uint256 id, uint256 status)
-        public
+    function hasMemberKYCCompleted(address caller, bytes calldata params)
+        external
+        returns (bool)
+    {
+        uint256 id = abi.decode(params, (uint256));
+        return (companies[id].status == uint256(WorkflowState.KYCCompleted) &&
+        (companies[id].memberCount > 2));
+    }
+
+    function hasRegistered(address caller, bytes calldata params)
+        external
+        returns (bool)
+    {
+        uint256 id = abi.decode(params, (uint256));
+        return companies[id].status == uint256(WorkflowState.Registered);
+    }
+
+    function hasNotarized(address caller, bytes calldata params)
+        external
+        returns (bool)
+    {
+        uint256 id = abi.decode(params, (uint256));
+        return companies[id].status == uint256(WorkflowState.NotaryStamped);
+    }
+
+    function setStatus(uint256 id, uint256 status, bytes4 fnName)
+        public onlyWhitelisted(msg.sender, fnName)
         propertyChange("status", abi.encodePacked(status))
         returns (bool)
     {
@@ -158,7 +183,6 @@ contract TestActionSAContract is MessageRoute, Utils {
         string memory jobMetadataURI,
         string memory metadataURI
     ) public returns (uint256) {
-        stateRelayer.validateState(address(this), getMethodSig(msg.data));
 
         companies[counter] = SociedadAnonima({
             name: name,
@@ -193,7 +217,6 @@ contract TestActionSAContract is MessageRoute, Utils {
         string memory did,
         string memory jobMetadataURI
     ) public returns (uint256) {
-        stateRelayer.validateState(address(this), getMethodSig(msg.data));
         require(
             companies[id].status == uint256(WorkflowState.RequestKYC),
             "Invalid state"
@@ -227,7 +250,6 @@ contract TestActionSAContract is MessageRoute, Utils {
         address legalResidentAgent,
         string memory legalResidentAgentDID
     ) public returns (bool) {
-        stateRelayer.validateState(address(this), getMethodSig(msg.data));
 
         require(
             companies[id].status == uint256(WorkflowState.AddMembers),
@@ -252,7 +274,6 @@ contract TestActionSAContract is MessageRoute, Utils {
     }
 
     function notaryStamp(uint256 id, uint jobId, string memory jobMetadataURI) public returns (bool) {
-        stateRelayer.validateState(address(this), getMethodSig(msg.data));
 
         require(
             companies[id].status == uint256(WorkflowState.RegisterCompany),
@@ -266,8 +287,7 @@ contract TestActionSAContract is MessageRoute, Utils {
         return true;
     }
 
-    function requestKYC(uint256 id, uint jobId, string memory jobMetadataURI) public returns (bool) {
-        stateRelayer.validateState(address(this), getMethodSig(msg.data));
+    function requestKYC(uint id, uint jobId, string memory jobMetadataURI) public returns (bool) {
 
         companies[id].status = uint256(WorkflowState.RequestKYC);
 
@@ -279,7 +299,6 @@ contract TestActionSAContract is MessageRoute, Utils {
     }
 
     function completeCompanyRegistration(uint256 id, uint jobId, string memory jobMetadataURI) public returns (bool) {
-        stateRelayer.validateState(address(this), getMethodSig(msg.data));
 
         require(
             companies[id].status == uint256(WorkflowState.NotaryStamped),
@@ -293,25 +312,4 @@ contract TestActionSAContract is MessageRoute, Utils {
         return true;
     }
 
-    //    function setMaintainer(
-    //         address caller,
-    //         bytes memory params
-    //     ) public  returns(bool) {
-    //         (uint id) =
-    //         abi.decode(
-    //             params,
-    //             (uint)
-    //         );
-
-    //         require(companies[id].status == uint(WorkflowState.NotaryStamped), "Invalid state");
-
-    //         companies[id].status = uint(WorkflowState.Registered);
-
-    //         emit ActionChanged(
-    //             getMethodSig(msg.data),
-    //             params
-    //         );
-
-    //         return true;
-    //     }
 }

@@ -55,8 +55,7 @@ contract('Async Request Response Message Gateway', accounts => {
           controller,
           messageSelector,
           conditions,
-          conditionStatus,
-          whitelist
+          conditionStatus,        
         );
 
         assert.equal(res.logs[0].args.controller, controller);

@@ -41,13 +41,14 @@ contract ActionRouteRegistry is Whitelist, MessageRoute {
         return actions[controller][selector];
     }
 
+    address  private owner;
 
     /**
     * constructor
     */
     constructor(
         address tokenAddress
-    ) public  {
+    ) public Whitelist(msg.sender)  {
         owner = msg.sender;
         stablecoin  = ERC20Interface(tokenAddress);
     }
@@ -87,8 +88,7 @@ contract ActionRouteRegistry is Whitelist, MessageRoute {
         address controller,
         bytes4 messageRequest,
         bytes4[] memory conditions,
-        bool[] memory conditionStatus,
-        address[] memory whitelist
+        bool[] memory conditionStatus
     )
         external
         payable
@@ -115,12 +115,6 @@ contract ActionRouteRegistry is Whitelist, MessageRoute {
             conditions.length < 6,
             "Max 5 conditions"
         );
-
-        require(
-            whitelist.length < 6,
-            "Max 5 address whitelist"
-        );
-
         /* require(
             stablecoin.balanceOf(msg.sender) == (mintingServiceFee.sum(protocolServiceFee)), 
             "MUST SEND FEE BEFORE USE");
@@ -136,9 +130,6 @@ contract ActionRouteRegistry is Whitelist, MessageRoute {
             conditionStatus: conditionStatus
         });
 
-        for (uint i = 0;i < whitelist.length; i++) {
-            userWhitelist[whitelist[i]][messageRequest] = true;
-        }
         
 
         // Update accounting
