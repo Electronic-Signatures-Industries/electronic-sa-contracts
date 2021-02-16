@@ -10,18 +10,21 @@ contract('Async Request Response Message Gateway', accounts => {
   let owner;
   let registry;
   let relayer;
+  let maintainer;
   let testDemoContract;
+  let Maintainer = artifacts.require('Maintainer');
   let ActionRouteRegistry = artifacts.require('ActionRouteRegistry');
   let TestDAI = artifacts.require('DAI');
   let StateRelayer = artifacts.require('StateRelayer');
   let TestActionSAContract = artifacts.require('TestActionSAContract');
   let reqResId;
-  contract('#ActionRouteRegistry', () => {
+  contract('#SA', () => {
     before(async () => {
       owner = accounts[0];
       dai = await TestDAI.deployed();
       registry = await ActionRouteRegistry.deployed();
       relayer = await StateRelayer.deployed();
+      maintainer = await Maintainer.deployed();
       testDemoContract = await TestActionSAContract.deployed();
     });
     describe('when registering an async req/res', () => {
@@ -35,6 +38,14 @@ contract('Async Request Response Message Gateway', accounts => {
 
         // allowance
         await dai.approve(
+          maintainer.address
+          ,
+          new BigNumber(22 * 1e18), {
+          from: accounts[0]
+        }
+        );
+        // allowance
+        await dai.approve(
           registry.address
           ,
           new BigNumber(22 * 1e18), {
@@ -43,7 +54,7 @@ contract('Async Request Response Message Gateway', accounts => {
         );
 //        const domain = await testDemoContract.getDomain();
         const controller = testDemoContract.address;
-        const messageSelector = web3.eth.abi.encodeFunctionSignature(`propose(string,address,string,string)`);
+        const messageSelector = web3.eth.abi.encodeFunctionSignature(`propose(string,address,string,string,uint)`);
         const conditions = [
           web3.eth.abi.encodeFunctionSignature(`hasRUC(address,bytes)`),
           web3.eth.abi.encodeFunctionSignature(`hasValidName(address,bytes)`),
@@ -73,6 +84,7 @@ contract('Async Request Response Message Gateway', accounts => {
             accounts[2],
             "https://ifesa.ipfs.pa/job_info",
             "https://ifesa.ipfs.pa/company_info",
+            new BigNumber(2 * 1e18)
         );
  
         console.log(response.logs[0].args)
@@ -87,7 +99,7 @@ contract('Async Request Response Message Gateway', accounts => {
         assert.equal(registry !== null, true);
 
         const controller = testDemoContract.address;
-        const messageSelector = web3.eth.abi.encodeFunctionSignature(`propose(string,address,string,string)`);
+        const messageSelector = web3.eth.abi.encodeFunctionSignature(`propose(string,address,string,string,uint)`);
 
         const response = await relayer.executeActionConditions(
           controller,

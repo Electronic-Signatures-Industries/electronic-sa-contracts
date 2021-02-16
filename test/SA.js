@@ -33,7 +33,7 @@ contract('SA', accounts => {
         // mint 22 DAI
         await dai.mint(
           accounts[0],
-          new BigNumber(22 * 1e18)
+          new BigNumber(2200 * 1e18)
         );
 
         // allowance
@@ -45,8 +45,17 @@ contract('SA', accounts => {
         }
         );
 
+        // allowance
+        await dai.approve(
+          maintainer.address
+          ,
+          new BigNumber(22 * 1e18), {
+          from: accounts[0]
+        }
+        );
+
         const controller = testDemoContract.address;
-        let messageSelector = web3.eth.abi.encodeFunctionSignature(`propose(string,address,string,string)`);
+        let messageSelector = web3.eth.abi.encodeFunctionSignature(`propose(string,address,string,string,uint)`);
         let conditions = [
           web3.eth.abi.encodeFunctionSignature(`hasValidName(address,bytes)`),
         ];
@@ -138,6 +147,7 @@ contract('SA', accounts => {
           accounts[2],
           "https://ifesa.ipfs.pa/job_info",
           "https://ifesa.ipfs.pa/company_info",
+          new BigNumber(2 * 1e18)
         );
 
         let { name, id, jobId } = response.logs[0].args;
@@ -173,8 +183,8 @@ contract('SA', accounts => {
           accounts[1],
           web3.eth.abi.encodeFunctionSignature(`setValidName(uint,bool,bytes4)`),
           true, {
-            from: accounts[0]
-          }
+          from: accounts[0]
+        }
         );
 
         await maintainer.grantAssignment(
@@ -195,7 +205,7 @@ contract('SA', accounts => {
         // reqResId = response.logs[1].args.id;
 
         // bot: execute conditions on propertyChanged
-        let messageSelector = web3.eth.abi.encodeFunctionSignature(`propose(string,address,string,string)`);
+        let messageSelector = web3.eth.abi.encodeFunctionSignature(`propose(string,address,string,string,uint)`);
         response = await relayer.executeActionConditions(
           controller,
           messageSelector,
@@ -242,9 +252,9 @@ contract('SA', accounts => {
           accounts[1],
           web3.eth.abi.encodeFunctionSignature(`setStatus(uint,uint,bytes4)`),
           true, {
-            from: accounts[0]
-          }
-        );        
+          from: accounts[0]
+        }
+        );
         response = await testDemoContract.setStatus(
           id,
           3,
@@ -252,8 +262,8 @@ contract('SA', accounts => {
           from: accounts[1]
         }
         );
-        
-        
+
+
         // bot: execute conditions on propertyChanged
         messageSelector = web3.eth.abi.encodeFunctionSignature(`addMemberKYC(uint,uint,string,address,address)`);
         response = await relayer.executeActionConditions(

@@ -60,7 +60,7 @@ contract ActionRouteRegistry is Whitelist, MessageRoute {
     }
 
     // Gets protocol fee
-    function getProtocolFee() public returns (uint256) {
+    function getProtocolFee() public view returns (uint256) {
         return (fee);
     }
 

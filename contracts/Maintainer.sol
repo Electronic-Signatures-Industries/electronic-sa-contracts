@@ -5,8 +5,11 @@ import "./RelayJob.sol";
 import "./MinLibBytes.sol";
 import "./MessageRoute.sol";
 import "./Whitelist.sol";
-
+import "./ERC20Interface.sol";
 contract Maintainer {
+        // Stable coin
+    ERC20Interface private stablecoin;
+
     address private owner;
     RelayJob public relayJob;
 
@@ -79,8 +82,10 @@ contract Maintainer {
     // Worker assign to a task
     mapping(address => uint256) public workerTasks;
 
-    constructor(address _relayJob) public {
+    constructor(address _relayJob, address tokenAddress) public {
         relayJob = RelayJob(_relayJob);
+        stablecoin  = ERC20Interface(tokenAddress);
+       
         owner = msg.sender;
     }
 
@@ -88,21 +93,40 @@ contract Maintainer {
      * @dev Creates an assignment given a new job id
      * @param relayJobId The job id.
      */
-    function createAssignmentAndEscrow(uint256 relayJobId, address caller)
+    function createAssignmentAndEscrow(uint256 relayJobId, address caller, uint amount)
         public
         payable
         virtual
         returns (uint256)
     {
-        uint256 amount = msg.value;
+
+        // User must have a balance
+        require(
+            stablecoin.balanceOf(caller) >= 0,
+            "Invalid token balance"
+        );
+        // User must have an allowance
+        require(
+            stablecoin.allowance(caller, address(this)) >= 0,
+            "Invalid token allowance"
+        );
+
         assignments[relayJobId] = Assignment({
             relayJobId: relayJobId,
             status: uint256(AssignmentStatus.INIT),
-            depositAmount: msg.value,
+            depositAmount: amount,
             owner: caller
         });
         assignmentCount++;
-        // todo: transfer
+
+        require(
+            stablecoin.transferFrom(
+                caller,
+                address(this), 
+                amount),
+            "Transfer failed for fee"
+        );
+
         emit Created(relayJobId);
         return relayJobId;
     }
@@ -299,7 +323,13 @@ contract Maintainer {
         require(assignments[workerTasks[payee]].depositAmount > 0, "Invalid access");
         uint256 payment = assignments[workerTasks[payee]].depositAmount;
         assignments[workerTasks[payee]].depositAmount = 0;
-        payee.transfer(payment);
+        require(
+            stablecoin.transfer(
+                msg.sender,
+                payment),
+            "Transfer failed for fee"
+        );
+
 
         emit Withdrawn(payee, payment);
 

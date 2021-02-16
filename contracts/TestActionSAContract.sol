@@ -172,8 +172,9 @@ contract TestActionSAContract is MessageRoute, Whitelist {
         string memory name,
         address agent,
         string memory jobMetadataURI,
-        string memory metadataURI
-    ) public returns (uint256) {
+        string memory metadataURI,
+        uint amount
+    ) public payable returns (uint256) {
 
         companies[counter] = SociedadAnonima({
             name: name,
@@ -194,7 +195,7 @@ contract TestActionSAContract is MessageRoute, Whitelist {
                 jobMetadataURI
             );
 
-        uint256 escrowid = maintainer.createAssignmentAndEscrow(jobCounter, msg.sender);
+        uint256 escrowid = maintainer.createAssignmentAndEscrow(jobCounter, msg.sender, amount);
         emit CompanyAdded(name, counter, jobCounter, escrowid);
 
         return counter;

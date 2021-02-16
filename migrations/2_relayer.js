@@ -43,7 +43,7 @@ module.exports = async (deployer, network, accounts) => {
   const stateRelayer = await StateRelayer.deployed();
 
   // Maintainer(relayJob)
-  await deployer.deploy(Maintainer, relayJob.address);
+  await deployer.deploy(Maintainer, relayJob.address, dai.address);
   const maintainer = await Maintainer.deployed();
 
   // Smart Contract XDV Business Events contract implementation(maintainer, stateRelayer)
