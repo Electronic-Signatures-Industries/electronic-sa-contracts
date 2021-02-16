@@ -41,7 +41,7 @@ contract('Async Request Response Message Gateway', accounts => {
           from: accounts[0]
         }
         );
-        const domain = await testDemoContract.getDomain();
+//        const domain = await testDemoContract.getDomain();
         const controller = testDemoContract.address;
         const messageSelector = web3.eth.abi.encodeFunctionSignature(`propose(string,address,string,string)`);
         const conditions = [
@@ -89,13 +89,6 @@ contract('Async Request Response Message Gateway', accounts => {
         const controller = testDemoContract.address;
         const messageSelector = web3.eth.abi.encodeFunctionSignature(`propose(string,address,string,string)`);
 
-        // console.log(res.logs[0]);
-        const domain = await registry.getDomainSeparator(
-          'TestActionSAContract',
-          testDemoContract.address,
-          10,
-          '1'
-        );
         const response = await relayer.executeActionConditions(
           controller,
           messageSelector,

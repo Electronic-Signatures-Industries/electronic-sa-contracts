@@ -1,16 +1,18 @@
 pragma solidity ^0.7.0;
 pragma experimental ABIEncoderV2;
 
+
 import "./MinLibBytes.sol";
 import "./MessageRoute.sol";
-import "./StateRelayer.sol";
 import "./Whitelist.sol";
 import "./Maintainer.sol";
 
 contract TestActionSAContract is MessageRoute, Whitelist {
     address public owner;
     Maintainer private maintainer;
-    StateRelayer private stateRelayer;
+
+    RelayJob public relayJob;
+
     struct SociedadAnonima {
         // Company Name
         string name;
@@ -74,11 +76,11 @@ contract TestActionSAContract is MessageRoute, Whitelist {
     constructor(
         address _owner,
         address _maintainer,
-        address _stateRelayer
+        address _relayJob
     ) public Whitelist(_owner) {
         maintainer = Maintainer(_maintainer);
         owner = _owner;
-        stateRelayer = StateRelayer(_stateRelayer);
+        relayJob = RelayJob(_relayJob);
     }
 
     /* Async Message Flow Functions */
@@ -165,17 +167,6 @@ contract TestActionSAContract is MessageRoute, Whitelist {
         (uint256 id, uint status) = abi.decode(params, (uint256, uint));
         return companies[id].status == status;
     }
-
-    function getDomain() public view returns (bytes32) {
-        return
-            stateRelayer.getDomainSeparator(
-                "TestActionSAContract",
-                address(this),
-                10,
-                "1"
-            );
-    }
-
     // Create SA
     function propose(
         string memory name,
@@ -197,8 +188,7 @@ contract TestActionSAContract is MessageRoute, Whitelist {
         });
         counter++;
 
-        uint256 jobCounter =
-            stateRelayer.addJob(
+        uint256 jobCounter = relayJob.addJob(
                 abi.encodePacked(counter),
                 getMethodSig(msg.data),
                 jobMetadataURI
@@ -227,7 +217,7 @@ contract TestActionSAContract is MessageRoute, Whitelist {
 
         companies[id].memberCount = companies[id].memberCount + 1;
 
-        stateRelayer.continueJob(
+        relayJob.continueJob(
             jobId,
             abi.encodePacked(id, memberId),
             getMethodSig(msg.data),
@@ -263,7 +253,7 @@ contract TestActionSAContract is MessageRoute, Whitelist {
         companies[id].metadataURI = metadataURI;
         companies[id].status = uint256(WorkflowState.RegisterCompany);
 
-        stateRelayer.continueJob(
+        relayJob.continueJob(
             jobId,
             abi.encodePacked(id, legalResidentAgent, metadataURI),
             getMethodSig(msg.data),
@@ -282,7 +272,7 @@ contract TestActionSAContract is MessageRoute, Whitelist {
 
         companies[id].status = uint256(WorkflowState.NotaryStamped);
 
-        stateRelayer.continueJob(jobId, abi.encodePacked(id), getMethodSig(msg.data), jobMetadataURI);
+        relayJob.continueJob(jobId, abi.encodePacked(id), getMethodSig(msg.data), jobMetadataURI);
 
         return true;
     }
@@ -293,7 +283,7 @@ contract TestActionSAContract is MessageRoute, Whitelist {
 
         emit RequestBoardMembersKYC(id);
 
-        stateRelayer.continueJob(jobId, abi.encodePacked(id), getMethodSig(msg.data), jobMetadataURI);
+        relayJob.continueJob(jobId, abi.encodePacked(id), getMethodSig(msg.data), jobMetadataURI);
 
         return true;
     }
@@ -307,7 +297,7 @@ contract TestActionSAContract is MessageRoute, Whitelist {
 
         companies[id].status = uint256(WorkflowState.Registered);
 
-        stateRelayer.continueJob(jobId, abi.encodePacked(id), getMethodSig(msg.data), jobMetadataURI);
+        relayJob.completeJob(jobId);
 
         return true;
     }

@@ -20,32 +20,18 @@ contract StateRelayer  is MessageRoute {
         registry = ActionRouteRegistry(wfRegistry);
     }
 
-
-    function addJob(
-        bytes memory ret,
-        bytes4 selector,
-        string memory   metadataURI
-    )   public returns(uint) {
-        return relayJob.addJob(ret, selector, metadataURI);
-    } 
-
-    function continueJob(
-        uint id,
-        bytes memory ret,
-        bytes4 selector,
-        string memory   metadataURI
-    )   public returns(bool) {
-        return relayJob.continueJob(id, ret, selector, metadataURI);
-    } 
-
     function revertWithData(bytes memory data) internal pure {
         assembly {
             revert(add(data,32), mload(data))
         }
     }
 
-    // Solo puede ser getter
-    // El switch de MessageConditionFound, llama al siguiente paso
+    /**
+     * @dev execute conditions
+     * @param controller contract address
+     * @param selector function name
+     * @param jobId job id
+     */
     function executeActionConditions(
         address controller,
         bytes4 selector,

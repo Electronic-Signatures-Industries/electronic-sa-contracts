@@ -85,10 +85,10 @@ contract Maintainer {
     }
 
     /**
-     * @dev Stores the sent amount as credit to be withdrawn.
+     * @dev Creates an assignment given a new job id
      * @param relayJobId The job id.
      */
-    function createAssignmentAndEscrow(uint256 relayJobId, address owner)
+    function createAssignmentAndEscrow(uint256 relayJobId, address caller)
         public
         payable
         virtual
@@ -99,7 +99,7 @@ contract Maintainer {
             relayJobId: relayJobId,
             status: uint256(AssignmentStatus.INIT),
             depositAmount: msg.value,
-            owner: owner
+            owner: caller
         });
         assignmentCount++;
         // todo: transfer

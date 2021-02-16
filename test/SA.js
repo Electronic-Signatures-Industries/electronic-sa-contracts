@@ -44,12 +44,7 @@ contract('SA', accounts => {
           from: accounts[0]
         }
         );
-        const domain = await registry.getDomainSeparator(
-          'TestActionSAContract',
-          testDemoContract.address,
-          10,
-          '1'
-        );
+
         const controller = testDemoContract.address;
         let messageSelector = web3.eth.abi.encodeFunctionSignature(`propose(string,address,string,string)`);
         let conditions = [

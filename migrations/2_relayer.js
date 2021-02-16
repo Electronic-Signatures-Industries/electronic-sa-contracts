@@ -47,7 +47,7 @@ module.exports = async (deployer, network, accounts) => {
   const maintainer = await Maintainer.deployed();
 
   // Smart Contract XDV Business Events contract implementation(maintainer, stateRelayer)
-  await deployer.deploy(TestActionSAContract, accounts[0], maintainer.address, stateRelayer.address);
+  await deployer.deploy(TestActionSAContract, accounts[0], maintainer.address, relayJob.address);
   const saMaker = await TestActionSAContract.deployed();
 
   await registry.setProtocolFee(new BigNumber(2 * 1e18));
